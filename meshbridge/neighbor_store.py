@@ -97,6 +97,69 @@ class NeighborStore:
         if full_key:
             record.key = full_key
 
+    def upgrade_recent_unnamed_neighbor(
+        self,
+        route_name: str | None,
+        msg: BridgeMessage,
+        max_age_seconds: int = 120,
+    ) -> bool:
+        """Heuristically upgrade the most recent unnamed neighbor.
+
+        This is used only when a channel message provides a clear sender name
+        but no key or prefix. It tries to match that name to the most recent
+        unnamed direct neighbor seen recently.
+
+        If matched, it upgrades not only the name but also any newer telemetry
+        carried by the message object.
+
+        Returns:
+            True if a record was upgraded.
+        """
+        candidate_name = (msg.sender.name or msg.sender.display or "").strip()
+        if not candidate_name or candidate_name.lower() == "unknown":
+            return False
+
+        now_ts = msg.created_at
+
+        candidates: list[NeighborRecord] = []
+        for record in self._neighbors.values():
+            if record.name:
+                continue
+            if record.last_seen <= 0:
+                continue
+            if now_ts - record.last_seen > max_age_seconds:
+                continue
+            if record.reachability not in (None, "direct"):
+                continue
+            candidates.append(record)
+
+        if not candidates:
+            return False
+
+        candidates.sort(key=lambda item: item.last_seen, reverse=True)
+        record = candidates[0]
+
+        record.name = candidate_name
+        record.last_seen = msg.created_at
+        record.source = msg.metadata.get("mesh_event_type", record.source)
+
+        if msg.rf.reachability:
+            record.reachability = msg.rf.reachability
+
+        if msg.path.hop_count is not None:
+            record.hop_count = msg.path.hop_count
+
+        if msg.rf.snr is not None:
+            record.snr = msg.rf.snr
+
+        if msg.rf.rssi is not None:
+            record.rssi = msg.rf.rssi
+
+        if msg.path.raw_path:
+            record.path = list(msg.path.raw_path)
+
+        return True
+
     def list_recent(self) -> list[NeighborRecord]:
         """Return neighbors sorted by most recently seen."""
         return sorted(self._neighbors.values(), key=lambda item: item.last_seen, reverse=True)

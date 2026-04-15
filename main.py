@@ -38,14 +38,15 @@ async def async_main() -> int:
     if args.log_level:
         config.log_level = args.log_level.upper()
 
-    setup_logging(config.log_level, config.log_file)
+    setup_logging(config.log_level, config.log_file, config.log_mode)
     log = logging.getLogger(__name__)
 
     if args.check_config:
         log.info(
-            "Config OK: routes=%s mesh_dm_channel_id=%s serial_port=%s",
+            "Config OK: routes=%s mesh_dm_channel_id=%s mesh_dm_user_id=%s serial_port=%s",
             len(config.routes),
             config.mesh_dm_channel_id,
+            config.mesh_dm_user_id,
             config.serial_port,
         )
         return 0

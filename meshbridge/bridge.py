@@ -29,7 +29,9 @@ from meshbridge.security import (
 )
 from meshbridge.webhook_sender import WebhookSender
 
-log = logging.getLogger(__name__)
+system_log = logging.getLogger("meshbridge.system")
+traffic_log = logging.getLogger("meshbridge.traffic")
+rf_log = logging.getLogger("meshbridge.rf")
 
 
 def resolve_sender_display(msg: BridgeMessage) -> str:
@@ -96,10 +98,7 @@ def extract_sender_name(payload: dict[str, Any]) -> str | None:
 
 def extract_full_key(payload: dict[str, Any]) -> str | None:
     """Extract the full key when present."""
-    direct_candidates = [
-        payload.get("pubkey"),
-        payload.get("public_key"),
-    ]
+    direct_candidates = [payload.get("pubkey"), payload.get("public_key")]
     for value in direct_candidates:
         if value is not None:
             return str(value)
@@ -125,10 +124,7 @@ def extract_full_key(payload: dict[str, Any]) -> str | None:
 
 def extract_key_prefix(payload: dict[str, Any], full_key: str | None) -> str | None:
     """Extract or derive the display key prefix."""
-    direct_candidates = [
-        payload.get("pubkey_prefix"),
-        payload.get("key_prefix"),
-    ]
+    direct_candidates = [payload.get("pubkey_prefix"), payload.get("key_prefix")]
     for value in direct_candidates:
         if value is not None:
             return str(value)[:8]
@@ -195,6 +191,7 @@ class MeshBridge:
         self.mesh_to_discord_queue: asyncio.Queue[BridgeMessage] = asyncio.Queue()
         self._worker_tasks: list[asyncio.Task[Any]] = []
         self._mesh_task: asyncio.Task[Any] | None = None
+        self._last_auto_probe: dict[str, int] = {}
 
     def attach_bot(self, bot: Any) -> None:
         """Attach the Discord bot instance."""
@@ -231,7 +228,7 @@ class MeshBridge:
                 await self.mesh.connect()
                 self.state.mesh_connected = True
                 self.state.reconnect_count += 1
-                log.info("Connected to MeshCore")
+                system_log.info("Connected to MeshCore")
 
                 delay = self.config.reconnect_initial_delay_seconds
 
@@ -243,7 +240,7 @@ class MeshBridge:
 
             except Exception as exc:
                 self.state.mesh_connected = False
-                log.exception("Mesh connection loop error: %s", exc)
+                system_log.exception("Mesh connection loop error: %s", exc)
 
             await asyncio.sleep(delay)
             delay = min(delay * 2, self.config.reconnect_max_delay_seconds)
@@ -349,6 +346,7 @@ class MeshBridge:
             text=msg.text,
             key_prefix=None,
         )
+        traffic_log.info("Discord -> Mesh route=%s sender=%s text=%r", msg.route.route_name, resolve_sender_display(msg), msg.text)
 
         for chunk in split_for_mesh(text, self.config.mesh_chunk_size):
             await self.mesh.send_channel_text(msg.route.mesh_channel, chunk)
@@ -369,17 +367,27 @@ class MeshBridge:
                 msg.drop_reason = "bot_not_attached"
                 return
 
-            channel = self.bot.get_channel(self.config.mesh_dm_channel_id)
-            if channel is None:
-                channel = await self.bot.fetch_channel(self.config.mesh_dm_channel_id)
-
             text = format_forwarded_text(
                 sender=resolve_sender_display(msg),
                 text=msg.text,
                 key_prefix=msg.sender.key_prefix,
             )
 
-            await channel.send(text, allowed_mentions=self.bot.allowed_mentions_none())
+            if self.config.mesh_dm_user_id:
+                user = await self.bot.fetch_user(self.config.mesh_dm_user_id)
+                await user.send(text, allowed_mentions=self.bot.allowed_mentions_none())
+                traffic_log.info("Mesh DM -> Discord user sender=%s text=%r", resolve_sender_display(msg), msg.text)
+            elif self.config.mesh_dm_channel_id:
+                channel = self.bot.get_channel(self.config.mesh_dm_channel_id)
+                if channel is None:
+                    channel = await self.bot.fetch_channel(self.config.mesh_dm_channel_id)
+                await channel.send(text, allowed_mentions=self.bot.allowed_mentions_none())
+                traffic_log.info("Mesh DM -> Discord room sender=%s text=%r", resolve_sender_display(msg), msg.text)
+            else:
+                msg.delivery_status = "failed"
+                msg.drop_reason = "no_dm_destination"
+                return
+
             msg.delivery_status = "sent"
             return
 
@@ -397,6 +405,8 @@ class MeshBridge:
         sender_name = resolve_sender_display(msg)
         content = msg.text.strip() if msg.text else sender_name
 
+        traffic_log.info("Mesh -> Discord route=%s sender=%s text=%r", msg.route.route_name, sender_name, msg.text)
+
         await self.webhooks.send(
             webhook_url=msg.route.webhook_url,
             display_name=sender_name,
@@ -413,13 +423,36 @@ class MeshBridge:
         try:
             looked_up_name = await self.mesh.get_contact_name_by_key_prefix(key_prefix)
         except Exception as exc:
-            log.debug("Contact lookup failed for %s: %s", key_prefix, exc)
+            rf_log.debug("Contact lookup failed for %s: %s", key_prefix, exc)
             return
 
         if looked_up_name:
             normalized = normalize_sender_name(looked_up_name, fallback=key_prefix)
             self.neighbors.upgrade_name(msg.sender.key, key_prefix, normalized)
-            log.debug("Upgraded neighbor %s with looked-up name %r", key_prefix, normalized)
+            rf_log.info("Neighbor contact lookup: key_prefix=%s name=%s", key_prefix, normalized)
+
+    async def _maybe_auto_probe_on_advert(self, msg: BridgeMessage) -> None:
+        """Optionally send path discovery when a new advert is heard."""
+        if not self.config.auto_probe_on_advert:
+            return
+
+        key = msg.sender.key or msg.sender.key_prefix
+        if not key:
+            return
+
+        canonical = (msg.sender.key_prefix or key[:8]).lower()
+        now_ts = msg.created_at
+        last_ts = self._last_auto_probe.get(canonical, 0)
+
+        if now_ts - last_ts < self.config.auto_probe_min_interval_seconds:
+            return
+
+        try:
+            await self.mesh.send_path_discovery(key)
+            self._last_auto_probe[canonical] = now_ts
+            rf_log.info("Auto path discovery sent for key=%s", key)
+        except Exception as exc:
+            rf_log.warning("Auto path discovery failed for key=%s: %s", key, exc)
 
     async def handle_mesh_event(self, event_name: str, payload: dict[str, Any]) -> None:
         """Handle one MeshCore event."""
@@ -428,6 +461,16 @@ class MeshBridge:
         if event_name == "CHANNEL_MSG_RECV":
             msg = self._build_message_from_mesh_payload(now, event_name, payload, kind="channel")
             self.neighbors.update_from_message(msg)
+
+            if msg.sender.name and not msg.sender.key and not msg.sender.key_prefix:
+                upgraded = self.neighbors.upgrade_recent_unnamed_neighbor(
+                    route_name=msg.route.route_name,
+                    msg=msg,
+                    max_age_seconds=120,
+                )
+                if upgraded:
+                    rf_log.info("Heuristically upgraded recent unnamed neighbor to %s", msg.sender.name)
+
             await self.enqueue_mesh_message(msg)
             return
 
@@ -442,12 +485,27 @@ class MeshBridge:
             self.neighbors.update_from_message(msg)
 
             if event_name == "ADVERTISEMENT":
+                rf_log.info("ADVERTISEMENT key=%s key_prefix=%s", msg.sender.key, msg.sender.key_prefix)
                 await self._try_enrich_neighbor_from_contact_lookup(msg)
+                await self._maybe_auto_probe_on_advert(msg)
+
+            if event_name in {"PATH_UPDATE", "PATH_RESPONSE", "TRACE_DATA"}:
+                rf_log.info(
+                    "%s key=%s key_prefix=%s reachability=%s hops=%s snr=%s rssi=%s path=%s",
+                    event_name,
+                    msg.sender.key,
+                    msg.sender.key_prefix,
+                    msg.rf.reachability,
+                    msg.path.hop_count,
+                    msg.rf.snr,
+                    msg.rf.rssi,
+                    msg.path.raw_path,
+                )
 
             return
 
         self.unhandled_events.add(now, event_name, safe_log_text(repr(payload)))
-        log.info("Unhandled MeshCore event: %s payload=%s", event_name, safe_log_text(repr(payload)))
+        system_log.info("Unhandled MeshCore event: %s payload=%s", event_name, safe_log_text(repr(payload)))
 
     def _build_message_from_mesh_payload(
         self,
@@ -488,6 +546,7 @@ class MeshBridge:
         msg.contains_mass_mention = contains_mass_mention(msg.text)
         msg.text_safe_for_log = safe_log_text(msg.text)
         msg.metadata["mesh_event_type"] = event_name
+        msg.metadata["raw_payload_preview"] = safe_log_text(repr(payload), max_len=800)
 
         if channel_idx is not None and int(channel_idx) in self.routes_by_mesh:
             route = self.routes_by_mesh[int(channel_idx)]
@@ -506,6 +565,24 @@ class MeshBridge:
 
         snr = payload.get("snr")
         rssi = payload.get("rssi")
+
+        if snr is None or rssi is None:
+            nested_sources = [
+                payload.get("rf"),
+                payload.get("signal"),
+                payload.get("decoded"),
+                payload.get("contact"),
+                payload.get("advert"),
+                payload.get("node"),
+            ]
+            for nested in nested_sources:
+                if not isinstance(nested, dict):
+                    continue
+                if snr is None and nested.get("snr") is not None:
+                    snr = nested.get("snr")
+                if rssi is None and nested.get("rssi") is not None:
+                    rssi = nested.get("rssi")
+
         msg.rf.snr = float(snr) if snr is not None else None
         msg.rf.rssi = float(rssi) if rssi is not None else None
 
@@ -518,7 +595,7 @@ class MeshBridge:
 
         msg.rf.raw = dict(payload)
 
-        log.debug(
+        rf_log.debug(
             "Built mesh message: sender=%r key=%r key_prefix=%r text=%r event=%s",
             msg.sender.display,
             msg.sender.key,
@@ -526,5 +603,8 @@ class MeshBridge:
             msg.text,
             event_name,
         )
+
+        if event_name == "CHANNEL_MSG_RECV":
+            rf_log.debug("CHANNEL_MSG_RECV raw payload: %r", payload)
 
         return msg

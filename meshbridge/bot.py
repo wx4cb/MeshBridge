@@ -41,6 +41,7 @@ class MeshBridgeBot(commands.Bot):
         self.tree.add_command(self._build_bridge_group())
         self.tree.add_command(self._build_mesh_group())
         self.tree.add_command(self._build_neighbors_group())
+        self.tree.add_command(self._build_nodes_group())
         guild = discord.Object(id=self.config.discord_guild_id)
         self.tree.copy_global_to(guild=guild)
         await self.tree.sync(guild=guild)
@@ -230,5 +231,29 @@ class MeshBridgeBot(commands.Bot):
                 await interaction.response.send_message(f"Probe failed: {exc}", ephemeral=True)
                 return
             await interaction.response.send_message(f"Probe sent for {row.key}.", ephemeral=True)
+
+        return group
+
+    def _build_nodes_group(self) -> app_commands.Group:
+        """Create the /nodes command group."""
+        group = app_commands.Group(name="nodes", description="Known node inspection commands")
+
+        @group.command(name="list", description="List all currently known nodes")
+        async def list_cmd(interaction: discord.Interaction) -> None:
+            rows = self.bridge.neighbors.list_recent()
+            if not rows:
+                await interaction.response.send_message("No known nodes yet.", ephemeral=True)
+                return
+
+            lines: list[str] = []
+            for row in rows[:25]:
+                short_key = row.key[:8] if row.key else "unknown"
+                label = row.name or short_key
+                lines.append(
+                    f"{label} | key={row.key} | reachability={row.reachability} | "
+                    f"hops={row.hop_count} | snr={row.snr} | rssi={row.rssi}"
+                )
+
+            await interaction.response.send_message("\n".join(lines), ephemeral=True)
 
         return group

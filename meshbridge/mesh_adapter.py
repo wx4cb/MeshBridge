@@ -49,6 +49,8 @@ class MeshAdapter:
             "PATH_UPDATE",
             "PATH_RESPONSE",
             "TRACE_DATA",
+            "RAW_DATA",
+            "RX_LOG_DATA",
             "ERROR",
         ]
         self._subscriptions: list[Any] = []
@@ -100,18 +102,28 @@ class MeshAdapter:
 
         await commands.send_advert(flood=flood)
 
-    async def send_path_discovery(self, dst: str) -> None:
-        """Send path discovery for a destination key or prefix."""
+    async def send_path_discovery(self, dst: str) -> Any:
+        """Send path discovery for a destination key or prefix.
+
+        Prefer the sync helper when available because newer meshcore versions
+        explicitly recommend it.
+        """
         if self._client is None:
             raise RuntimeError("MeshAdapter is not connected")
 
         commands = getattr(self._client, "commands", None)
-        if commands is None or not hasattr(commands, "send_path_discovery"):
-            raise RuntimeError("MeshCore send_path_discovery command is unavailable")
+        if commands is None:
+            raise RuntimeError("MeshCore commands API is unavailable")
 
-        await commands.send_path_discovery(dst)
+        if hasattr(commands, "send_path_discovery_sync"):
+            return await commands.send_path_discovery_sync(dst)
 
-    async def send_trace(self, auth_code: int, tag: int, flags: int, path: list[str] | None = None) -> None:
+        if hasattr(commands, "send_path_discovery"):
+            return await commands.send_path_discovery(dst)
+
+        raise RuntimeError("MeshCore path discovery command is unavailable")
+
+    async def send_trace(self, auth_code: int, tag: int, flags: int, path: list[str] | None = None) -> Any:
         """Send a trace request."""
         if self._client is None:
             raise RuntimeError("MeshAdapter is not connected")
@@ -120,7 +132,7 @@ class MeshAdapter:
         if commands is None or not hasattr(commands, "send_trace"):
             raise RuntimeError("MeshCore send_trace command is unavailable")
 
-        await commands.send_trace(auth_code, tag, flags, path=path)
+        return await commands.send_trace(auth_code, tag, flags, path=path)
 
     async def get_contact_name_by_key_prefix(self, key_prefix: str) -> str | None:
         """Try to resolve a contact name by key prefix."""
@@ -156,4 +168,3 @@ class MeshAdapter:
     async def sleep_briefly(self, seconds: float) -> None:
         """Sleep briefly between chunk sends."""
         await asyncio.sleep(seconds)
-
