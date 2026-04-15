@@ -5,3 +5,5 @@ config.json
 node_modules/
 *.bak
 *.save
+meshbridge/__pycache__/
+
