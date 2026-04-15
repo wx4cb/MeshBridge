@@ -82,6 +82,7 @@ def extract_sender_name(payload: dict[str, Any]) -> str | None:
     for obj in nested_objects:
         if not isinstance(obj, dict):
             continue
+
         for key in ("adv_name", "name", "contact_name", "sender_name", "node_name", "display_name"):
             value = obj.get(key)
             if isinstance(value, str) and value.strip():
@@ -192,6 +193,7 @@ class MeshBridge:
         self._worker_tasks: list[asyncio.Task[Any]] = []
         self._mesh_task: asyncio.Task[Any] | None = None
         self._last_auto_probe: dict[str, int] = {}
+        self._pending_rf_samples: list[dict[str, Any]] = []
 
     def attach_bot(self, bot: Any) -> None:
         """Attach the Discord bot instance."""
@@ -323,6 +325,68 @@ class MeshBridge:
             await asyncio.sleep(30)
             self.neighbors.save()
 
+    def _store_pending_rf_sample(self, msg: BridgeMessage) -> None:
+        """Store an anonymous RF sample for later correlation."""
+        if msg.rf.snr is None and msg.rf.rssi is None:
+            return
+
+        self._pending_rf_samples.append(
+            {
+                "ts": msg.created_at,
+                "snr": msg.rf.snr,
+                "rssi": msg.rf.rssi,
+                "reachability": msg.rf.reachability,
+                "hop_count": msg.path.hop_count,
+                "path": list(msg.path.raw_path),
+            }
+        )
+
+        cutoff = msg.created_at - 10
+        self._pending_rf_samples = [
+            sample for sample in self._pending_rf_samples
+            if sample["ts"] >= cutoff
+        ]
+
+        rf_log.info(
+            "Stored pending RF sample snr=%s rssi=%s reachability=%s hops=%s",
+            msg.rf.snr,
+            msg.rf.rssi,
+            msg.rf.reachability,
+            msg.path.hop_count,
+        )
+
+    def _apply_pending_rf_sample_to_message(self, msg: BridgeMessage) -> bool:
+        """Apply the most recent anonymous RF sample to a message."""
+        if msg.rf.snr is not None or msg.rf.rssi is not None:
+            return False
+
+        if not self._pending_rf_samples:
+            return False
+
+        now_ts = msg.created_at
+        candidates = [
+            sample for sample in self._pending_rf_samples
+            if abs(now_ts - sample["ts"]) <= 5
+        ]
+        if not candidates:
+            return False
+
+        sample = candidates[-1]
+
+        msg.rf.snr = sample["snr"]
+        msg.rf.rssi = sample["rssi"]
+
+        if sample["reachability"] and msg.rf.reachability == "unknown":
+            msg.rf.reachability = sample["reachability"]
+
+        if msg.path.hop_count is None and sample["hop_count"] is not None:
+            msg.path.hop_count = sample["hop_count"]
+
+        if not msg.path.raw_path and sample["path"]:
+            msg.path.raw_path = list(sample["path"])
+
+        return True
+
     async def _deliver_discord_to_mesh(self, msg: BridgeMessage) -> None:
         """Send a Discord message to mesh."""
         if self.state.global_paused:
@@ -346,7 +410,12 @@ class MeshBridge:
             text=msg.text,
             key_prefix=None,
         )
-        traffic_log.info("Discord -> Mesh route=%s sender=%s text=%r", msg.route.route_name, resolve_sender_display(msg), msg.text)
+        traffic_log.info(
+            "Discord -> Mesh route=%s sender=%s text=%r",
+            msg.route.route_name,
+            resolve_sender_display(msg),
+            msg.text,
+        )
 
         for chunk in split_for_mesh(text, self.config.mesh_chunk_size):
             await self.mesh.send_channel_text(msg.route.mesh_channel, chunk)
@@ -376,13 +445,21 @@ class MeshBridge:
             if self.config.mesh_dm_user_id:
                 user = await self.bot.fetch_user(self.config.mesh_dm_user_id)
                 await user.send(text, allowed_mentions=self.bot.allowed_mentions_none())
-                traffic_log.info("Mesh DM -> Discord user sender=%s text=%r", resolve_sender_display(msg), msg.text)
+                traffic_log.info(
+                    "Mesh DM -> Discord user sender=%s text=%r",
+                    resolve_sender_display(msg),
+                    msg.text,
+                )
             elif self.config.mesh_dm_channel_id:
                 channel = self.bot.get_channel(self.config.mesh_dm_channel_id)
                 if channel is None:
                     channel = await self.bot.fetch_channel(self.config.mesh_dm_channel_id)
                 await channel.send(text, allowed_mentions=self.bot.allowed_mentions_none())
-                traffic_log.info("Mesh DM -> Discord room sender=%s text=%r", resolve_sender_display(msg), msg.text)
+                traffic_log.info(
+                    "Mesh DM -> Discord room sender=%s text=%r",
+                    resolve_sender_display(msg),
+                    msg.text,
+                )
             else:
                 msg.delivery_status = "failed"
                 msg.drop_reason = "no_dm_destination"
@@ -405,7 +482,12 @@ class MeshBridge:
         sender_name = resolve_sender_display(msg)
         content = msg.text.strip() if msg.text else sender_name
 
-        traffic_log.info("Mesh -> Discord route=%s sender=%s text=%r", msg.route.route_name, sender_name, msg.text)
+        traffic_log.info(
+            "Mesh -> Discord route=%s sender=%s text=%r",
+            msg.route.route_name,
+            sender_name,
+            msg.text,
+        )
 
         await self.webhooks.send(
             webhook_url=msg.route.webhook_url,
@@ -438,6 +520,7 @@ class MeshBridge:
 
         key = msg.sender.key or msg.sender.key_prefix
         if not key:
+            rf_log.info("Auto probe skipped: no key available for advert sender=%s", msg.sender.display)
             return
 
         canonical = (msg.sender.key_prefix or key[:8]).lower()
@@ -445,12 +528,20 @@ class MeshBridge:
         last_ts = self._last_auto_probe.get(canonical, 0)
 
         if now_ts - last_ts < self.config.auto_probe_min_interval_seconds:
+            rf_log.info(
+                "Auto probe skipped: cooldown key=%s age=%s required=%s",
+                canonical,
+                now_ts - last_ts,
+                self.config.auto_probe_min_interval_seconds,
+            )
             return
 
+        rf_log.info("Auto probe sending path discovery for key=%s canonical=%s", key, canonical)
+
         try:
-            await self.mesh.send_path_discovery(key)
+            result = await self.mesh.send_path_discovery(key)
             self._last_auto_probe[canonical] = now_ts
-            rf_log.info("Auto path discovery sent for key=%s", key)
+            rf_log.info("Auto path discovery sent for key=%s result=%r", key, result)
         except Exception as exc:
             rf_log.warning("Auto path discovery failed for key=%s: %s", key, exc)
 
@@ -460,6 +551,16 @@ class MeshBridge:
 
         if event_name == "CHANNEL_MSG_RECV":
             msg = self._build_message_from_mesh_payload(now, event_name, payload, kind="channel")
+
+            correlated = self._apply_pending_rf_sample_to_message(msg)
+            if correlated:
+                rf_log.info(
+                    "Applied pending RF sample to CHANNEL_MSG_RECV sender=%s snr=%s rssi=%s",
+                    resolve_sender_display(msg),
+                    msg.rf.snr,
+                    msg.rf.rssi,
+                )
+
             self.neighbors.update_from_message(msg)
 
             if msg.sender.name and not msg.sender.key and not msg.sender.key_prefix:
@@ -480,8 +581,12 @@ class MeshBridge:
             await self.enqueue_mesh_message(msg)
             return
 
-        if event_name in {"ADVERTISEMENT", "PATH_UPDATE", "PATH_RESPONSE", "TRACE_DATA"}:
+        if event_name in {"ADVERTISEMENT", "PATH_UPDATE", "PATH_RESPONSE", "TRACE_DATA", "RAW_DATA", "RX_LOG_DATA"}:
             msg = self._build_message_from_mesh_payload(now, event_name, payload, kind="system")
+
+            if event_name in {"RAW_DATA", "RX_LOG_DATA"} and not msg.sender.key and not msg.sender.key_prefix:
+                self._store_pending_rf_sample(msg)
+
             self.neighbors.update_from_message(msg)
 
             if event_name == "ADVERTISEMENT":
@@ -489,7 +594,7 @@ class MeshBridge:
                 await self._try_enrich_neighbor_from_contact_lookup(msg)
                 await self._maybe_auto_probe_on_advert(msg)
 
-            if event_name in {"PATH_UPDATE", "PATH_RESPONSE", "TRACE_DATA"}:
+            if event_name in {"PATH_UPDATE", "PATH_RESPONSE", "TRACE_DATA", "RAW_DATA", "RX_LOG_DATA"}:
                 rf_log.info(
                     "%s key=%s key_prefix=%s reachability=%s hops=%s snr=%s rssi=%s path=%s",
                     event_name,
@@ -583,6 +688,12 @@ class MeshBridge:
                 if rssi is None and nested.get("rssi") is not None:
                     rssi = nested.get("rssi")
 
+        if event_name in {"RAW_DATA", "RX_LOG_DATA"}:
+            if isinstance(payload.get("snr"), (int, float, str)):
+                snr = payload.get("snr")
+            if isinstance(payload.get("rssi"), (int, float, str)):
+                rssi = payload.get("rssi")
+
         msg.rf.snr = float(snr) if snr is not None else None
         msg.rf.rssi = float(rssi) if rssi is not None else None
 
@@ -606,5 +717,8 @@ class MeshBridge:
 
         if event_name == "CHANNEL_MSG_RECV":
             rf_log.debug("CHANNEL_MSG_RECV raw payload: %r", payload)
+
+        if event_name in {"RAW_DATA", "RX_LOG_DATA"}:
+            rf_log.debug("%s raw payload: %r", event_name, payload)
 
         return msg

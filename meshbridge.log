@@ -442,3 +442,138 @@ TypeError: NeighborStore.upgrade_recent_unnamed_neighbor() got an unexpected key
 2026-04-15 15:58:32,280 INFO meshbridge.rf: Heuristically upgraded recent unnamed neighbor to WX4CB RAV4
 2026-04-15 16:00:46,342 WARNING meshcore: *** please consider using send_path_discovery_sync instead of send_path_discovery
 2026-04-15 16:02:29,533 WARNING meshcore: *** please consider using send_path_discovery_sync instead of send_path_discovery
+2026-04-15 16:24:16,927 WARNING discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-04-15 16:24:16,927 WARNING discord.client: davey is not installed, voice will NOT be supported
+2026-04-15 16:24:17,350 INFO meshcore: Serial Connection started
+2026-04-15 16:25:18,784 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.0 rssi=-79.0 path=[]
+2026-04-15 16:25:19,316 INFO meshbridge.rf: ADVERTISEMENT key=8e86211820cce3eb2ace9ef8418959c93f6bdc208cca2f64cef1663f7268680f key_prefix=8e862118
+2026-04-15 16:25:19,316 INFO meshbridge.rf: Auto probe sending path discovery for key=8e86211820cce3eb2ace9ef8418959c93f6bdc208cca2f64cef1663f7268680f canonical=8e862118
+2026-04-15 16:25:19,712 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=12.25 rssi=-64.0 path=[]
+2026-04-15 16:25:22,725 INFO meshbridge.rf: Auto path discovery sent for key=8e86211820cce3eb2ace9ef8418959c93f6bdc208cca2f64cef1663f7268680f result=None
+2026-04-15 16:25:39,097 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.25 rssi=-91.0 path=[]
+2026-04-15 16:25:39,100 INFO meshbridge.rf: Heuristically upgraded recent unnamed neighbor to WX4CB RAV4
+2026-04-15 16:25:39,717 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=12.25 rssi=-60.0 path=[]
+2026-04-15 16:55:39,393 WARNING discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-04-15 16:55:39,393 WARNING discord.client: davey is not installed, voice will NOT be supported
+2026-04-15 16:55:40,465 INFO meshcore: Serial Connection started
+2026-04-15 16:55:52,779 INFO meshbridge.rf: Stored pending RF sample snr=11.5 rssi=-86.0 reachability=direct hops=0
+2026-04-15 16:55:52,779 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.5 rssi=-86.0 path=[]
+2026-04-15 16:55:53,060 INFO meshbridge.rf: ADVERTISEMENT key=8e86211820cce3eb2ace9ef8418959c93f6bdc208cca2f64cef1663f7268680f key_prefix=8e862118
+2026-04-15 16:55:53,060 INFO meshbridge.rf: Auto probe sending path discovery for key=8e86211820cce3eb2ace9ef8418959c93f6bdc208cca2f64cef1663f7268680f canonical=8e862118
+2026-04-15 16:55:53,855 INFO meshbridge.rf: Stored pending RF sample snr=11.5 rssi=-65.0 reachability=unknown hops=None
+2026-04-15 16:55:53,856 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=11.5 rssi=-65.0 path=[]
+2026-04-15 16:55:54,001 INFO meshbridge.rf: Stored pending RF sample snr=12.5 rssi=-66.0 reachability=unknown hops=None
+2026-04-15 16:55:54,002 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=12.5 rssi=-66.0 path=[]
+2026-04-15 16:55:56,468 INFO meshbridge.rf: Auto path discovery sent for key=8e86211820cce3eb2ace9ef8418959c93f6bdc208cca2f64cef1663f7268680f result=None
+2026-04-15 16:56:09,731 INFO meshbridge.rf: Stored pending RF sample snr=12.25 rssi=-86.0 reachability=direct hops=0
+2026-04-15 16:56:09,731 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.25 rssi=-86.0 path=[]
+2026-04-15 16:56:09,734 INFO meshbridge.rf: Applied pending RF sample to CHANNEL_MSG_RECV sender=WX4CB RAV4 snr=12.25 rssi=-86.0
+2026-04-15 16:56:09,734 INFO meshbridge.rf: Heuristically upgraded recent unnamed neighbor to WX4CB RAV4
+2026-04-15 16:56:10,222 INFO meshbridge.rf: Stored pending RF sample snr=12.0 rssi=-65.0 reachability=unknown hops=None
+2026-04-15 16:56:10,222 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=12.0 rssi=-65.0 path=[]
+2026-04-15 16:57:06,948 WARNING discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-04-15 16:57:06,948 WARNING discord.client: davey is not installed, voice will NOT be supported
+2026-04-15 16:57:07,625 INFO meshcore: Serial Connection started
+2026-04-15 16:59:40,542 WARNING discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-04-15 16:59:40,542 WARNING discord.client: davey is not installed, voice will NOT be supported
+2026-04-15 16:59:40,889 INFO meshcore: Serial Connection started
+2026-04-15 16:59:46,903 INFO meshbridge.rf: Stored pending RF sample snr=12.25 rssi=-85.0 reachability=direct hops=0
+2026-04-15 16:59:46,903 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.25 rssi=-85.0 path=[]
+2026-04-15 16:59:46,905 INFO meshbridge.rf: Applied pending RF sample to CHANNEL_MSG_RECV sender=WX4CB RAV4 snr=12.25 rssi=-85.0
+2026-04-15 16:59:47,379 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-66.0 reachability=unknown hops=None
+2026-04-15 16:59:47,379 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=11.75 rssi=-66.0 path=[]
+2026-04-15 17:00:04,270 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-82.0 reachability=direct hops=0
+2026-04-15 17:00:04,270 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.75 rssi=-82.0 path=[]
+2026-04-15 17:00:04,556 INFO meshbridge.rf: ADVERTISEMENT key=8e86211820cce3eb2ace9ef8418959c93f6bdc208cca2f64cef1663f7268680f key_prefix=8e862118
+2026-04-15 17:00:04,556 INFO meshbridge.rf: Auto probe sending path discovery for key=8e86211820cce3eb2ace9ef8418959c93f6bdc208cca2f64cef1663f7268680f canonical=8e862118
+2026-04-15 17:00:05,106 INFO meshbridge.rf: Stored pending RF sample snr=12.0 rssi=-66.0 reachability=unknown hops=None
+2026-04-15 17:00:05,107 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=12.0 rssi=-66.0 path=[]
+2026-04-15 17:00:07,964 INFO meshbridge.rf: Auto path discovery sent for key=8e86211820cce3eb2ace9ef8418959c93f6bdc208cca2f64cef1663f7268680f result=None
+2026-04-15 17:00:14,989 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-63.0 reachability=unknown hops=None
+2026-04-15 17:00:14,989 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=11.75 rssi=-63.0 path=[]
+2026-04-15 17:00:27,703 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-81.0 reachability=direct hops=0
+2026-04-15 17:00:27,703 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.75 rssi=-81.0 path=[]
+2026-04-15 17:00:27,706 INFO meshbridge.rf: Applied pending RF sample to CHANNEL_MSG_RECV sender=WX4CB RAV4 snr=11.75 rssi=-81.0
+2026-04-15 17:00:27,706 INFO meshbridge.rf: Heuristically upgraded recent unnamed neighbor to WX4CB RAV4
+2026-04-15 17:00:27,958 INFO meshbridge.rf: Stored pending RF sample snr=11.5 rssi=-65.0 reachability=unknown hops=None
+2026-04-15 17:00:27,958 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=11.5 rssi=-65.0 path=[]
+2026-04-15 17:02:24,408 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-75.0 reachability=direct hops=0
+2026-04-15 17:02:24,408 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.75 rssi=-75.0 path=[]
+2026-04-15 17:02:24,903 INFO meshbridge.rf: Stored pending RF sample snr=12.25 rssi=-63.0 reachability=direct hops=0
+2026-04-15 17:02:24,904 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.25 rssi=-63.0 path=[]
+2026-04-15 17:02:27,917 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-63.0 reachability=unknown hops=None
+2026-04-15 17:02:27,917 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=11.75 rssi=-63.0 path=[]
+2026-04-15 17:02:28,405 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-75.0 reachability=direct hops=0
+2026-04-15 17:02:28,405 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.75 rssi=-75.0 path=[]
+2026-04-15 17:02:28,542 INFO meshbridge.rf: Stored pending RF sample snr=12.25 rssi=-75.0 reachability=direct hops=0
+2026-04-15 17:02:28,542 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.25 rssi=-75.0 path=[]
+2026-04-15 17:02:28,999 INFO meshbridge.rf: Stored pending RF sample snr=12.0 rssi=-63.0 reachability=direct hops=0
+2026-04-15 17:02:29,000 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.0 rssi=-63.0 path=[]
+2026-04-15 17:02:33,293 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-75.0 reachability=direct hops=0
+2026-04-15 17:02:33,293 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.75 rssi=-75.0 path=[]
+2026-04-15 17:02:34,104 INFO meshbridge.rf: Stored pending RF sample snr=12.75 rssi=-63.0 reachability=direct hops=0
+2026-04-15 17:02:34,104 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.75 rssi=-63.0 path=[]
+2026-04-15 17:02:35,250 INFO meshbridge.rf: Stored pending RF sample snr=11.25 rssi=-63.0 reachability=direct hops=0
+2026-04-15 17:02:35,251 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.25 rssi=-63.0 path=[]
+2026-04-15 17:02:35,775 INFO meshbridge.rf: ADVERTISEMENT key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 key_prefix=dbf23a42
+2026-04-15 17:02:35,775 INFO meshbridge.rf: Auto probe sending path discovery for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 canonical=dbf23a42
+2026-04-15 17:02:36,367 INFO meshbridge.rf: Stored pending RF sample snr=12.5 rssi=-63.0 reachability=direct hops=0
+2026-04-15 17:02:36,367 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.5 rssi=-63.0 path=[]
+2026-04-15 17:02:36,369 INFO meshbridge.rf: PATH_RESPONSE key=None key_prefix=None reachability=direct hops=0 snr=None rssi=None path=[]
+2026-04-15 17:02:36,369 INFO meshbridge.rf: Auto path discovery sent for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 result=Event(type=<EventType.PATH_RESPONSE: 'path_response'>, payload={'pubkey_pre': 'dbf23a422d8c', 'out_path_len': 0, 'out_path_hash_len': 1, 'out_path': '', 'in_path_len': 0, 'in_path_hash_len': 1, 'in_path': ''}, attributes={'pubkey_pre': 'dbf23a422d8c'})
+2026-04-15 17:02:37,043 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-76.0 reachability=direct hops=0
+2026-04-15 17:02:37,043 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.75 rssi=-76.0 path=[]
+2026-04-15 17:02:37,535 INFO meshbridge.rf: Stored pending RF sample snr=12.5 rssi=-63.0 reachability=direct hops=0
+2026-04-15 17:02:37,536 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.5 rssi=-63.0 path=[]
+2026-04-15 17:13:52,121 WARNING discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-04-15 17:13:52,121 WARNING discord.client: davey is not installed, voice will NOT be supported
+2026-04-15 17:13:52,577 INFO meshcore: Serial Connection started
+2026-04-15 17:13:52,579 INFO meshbridge.system: Connected to MeshCore
+2026-04-15 17:15:05,949 ERROR meshcore: Error in event handler for EventType.ADVERTISEMENT: 'NeighborCacheEntry' object has no attribute '__dict__'
+Traceback (most recent call last):
+  File "/usr/src/mesh/MeshBridge/.venv/lib/python3.14/site-packages/meshcore/events.py", line 213, in _execute_callback
+    await callback(event)
+  File "/usr/src/mesh/MeshBridge/meshbridge/mesh_adapter.py", line 43, in _forward
+    await self._callback(event_name, payload)
+  File "/usr/src/mesh/MeshBridge/meshbridge/bridge.py", line 590, in handle_mesh_event
+    self.neighbors.update_from_message(msg)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/usr/src/mesh/MeshBridge/meshbridge/neighbor_store.py", line 147, in update_from_message
+    self.save()
+    ~~~~~~~~~^^
+  File "/usr/src/mesh/MeshBridge/meshbridge/neighbor_store.py", line 289, in save
+    ).__dict__
+      ^^^^^^^^
+AttributeError: 'NeighborCacheEntry' object has no attribute '__dict__'. Did you mean: '__dir__'?
+2026-04-15 17:15:56,636 ERROR meshcore: Error in event handler for EventType.RX_LOG_DATA: 'NeighborCacheEntry' object has no attribute '__dict__'
+Traceback (most recent call last):
+  File "/usr/src/mesh/MeshBridge/.venv/lib/python3.14/site-packages/meshcore/events.py", line 213, in _execute_callback
+    await callback(event)
+  File "/usr/src/mesh/MeshBridge/meshbridge/mesh_adapter.py", line 43, in _forward
+    await self._callback(event_name, payload)
+  File "/usr/src/mesh/MeshBridge/meshbridge/bridge.py", line 590, in handle_mesh_event
+    self.neighbors.update_from_message(msg)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/usr/src/mesh/MeshBridge/meshbridge/neighbor_store.py", line 81, in update_from_message
+    self.save()
+    ~~~~~~~~~^^
+  File "/usr/src/mesh/MeshBridge/meshbridge/neighbor_store.py", line 289, in save
+    ).__dict__
+      ^^^^^^^^
+AttributeError: 'NeighborCacheEntry' object has no attribute '__dict__'. Did you mean: '__dir__'?
+2026-04-15 17:15:57,168 ERROR meshcore: Error in event handler for EventType.ADVERTISEMENT: 'NeighborCacheEntry' object has no attribute '__dict__'
+Traceback (most recent call last):
+  File "/usr/src/mesh/MeshBridge/.venv/lib/python3.14/site-packages/meshcore/events.py", line 213, in _execute_callback
+    await callback(event)
+  File "/usr/src/mesh/MeshBridge/meshbridge/mesh_adapter.py", line 43, in _forward
+    await self._callback(event_name, payload)
+  File "/usr/src/mesh/MeshBridge/meshbridge/bridge.py", line 590, in handle_mesh_event
+    self.neighbors.update_from_message(msg)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/usr/src/mesh/MeshBridge/meshbridge/neighbor_store.py", line 147, in update_from_message
+    self.save()
+    ~~~~~~~~~^^
+  File "/usr/src/mesh/MeshBridge/meshbridge/neighbor_store.py", line 289, in save
+    ).__dict__
+      ^^^^^^^^
+AttributeError: 'NeighborCacheEntry' object has no attribute '__dict__'. Did you mean: '__dir__'?
