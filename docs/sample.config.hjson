@@ -1,0 +1,90 @@
+{
+  # ============================================================================
+  # MeshBridge example configuration
+  # ============================================================================
+  #
+  # This file uses HJSON so comments are allowed.
+  # You can keep the values you already know and document them inline.
+  #
+
+  # Discord bot token.
+  discord_token: "PUT_DISCORD_BOT_TOKEN_HERE"
+
+  # Discord application / client ID.
+  discord_application_id: 1490809692601979003
+
+  # Discord guild/server ID where slash commands are synced.
+  discord_guild_id: 1490808954438025218
+
+  # Private Discord channel where Mesh direct messages will be forwarded.
+  mesh_dm_channel_id: 1490809019370049810
+
+  # Fixed avatar used for Mesh -> Discord webhook posts.
+  # This avoids any user-controlled avatar injection.
+  meshcore_avatar_url: "https://raw.githubusercontent.com/meshcore-dev/MeshCore/main/images/icon.png"
+
+  # MeshCore serial device.
+  serial_port: "/dev/ttyACM0"
+  baud_rate: 115200
+
+  # General debug / logging controls.
+  debug: true
+  log_level: "DEBUG"
+  log_file: "meshbridge.log"
+
+  # Bounded in-memory stores.
+  max_message_history: 100
+  max_unhandled_events: 100
+
+  # Persist only a small compact neighbor cache.
+  neighbor_cache_file: "neighbors.json"
+  neighbor_cache_limit: 5
+
+  # Simple rate limiting.
+  rate_limit_window_seconds: 15
+  rate_limit_max_messages: 6
+
+  # Outbound mesh chunking.
+  mesh_chunk_size: 120
+  mesh_chunk_delay_seconds: 2.5
+
+  # Webhook timeout and Mesh reconnect backoff.
+  webhook_timeout_seconds: 10
+  reconnect_initial_delay_seconds: 2
+  reconnect_max_delay_seconds: 30
+
+  # Route mappings.
+  #
+  # name:
+  #   Friendly route label only.
+  #
+  # mesh_channel:
+  #   MeshCore channel number.
+  #
+  # discord_channel_id:
+  #   Discord destination channel for that mesh channel.
+  #
+  # webhook_url:
+  #   Discord webhook URL for Mesh -> Discord delivery.
+  #
+  routes: [
+    {
+      name: "PUBLIC"
+      mesh_channel: 0
+      discord_channel_id: 1490838749524005005
+      webhook_url: "https://discord.com/api/webhooks/REPLACE_ME"
+    }
+    {
+      name: "Volusia Bridge"
+      mesh_channel: 1
+      discord_channel_id: 1490809019370049810
+      webhook_url: "https://discord.com/api/webhooks/REPLACE_ME"
+    }
+    {
+      name: "WX4CB"
+      mesh_channel: 2
+      discord_channel_id: 1490842865339732100
+      webhook_url: "https://discord.com/api/webhooks/REPLACE_ME"
+    }
+  ]
+}

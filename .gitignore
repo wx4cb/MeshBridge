@@ -1,0 +1,7 @@
+neighbours.json
+config.hjson
+.env
+config.json
+node_modules/
+*.bak
+*.save

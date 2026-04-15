@@ -1,0 +1,14 @@
+[Unit]
+Description=MeshBridge Discord-MeshCore Bridge
+After=network.target
+
+[Service]
+Type=simple
+User=REPLACE_ME
+WorkingDirectory=/opt/MeshBridge
+ExecStart=/usr/bin/python3 /opt/MeshBridge/main.py --config /opt/MeshBridge/config.json --log-level INFO
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
