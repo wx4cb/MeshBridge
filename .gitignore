@@ -1,11 +1,11 @@
 neighbours.json
 config.hjson
 .env
-config.json
-node_modules/
+.venv
 *.bak
 *.save
-meshbridge/__pycache__/
+*.log
 .vscode
 .codex
 __pycache__
+meshbridge/__pycache__/

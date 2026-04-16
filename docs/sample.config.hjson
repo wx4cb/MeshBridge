@@ -3,15 +3,15 @@
   # Discord settings
   # ============================================================================
   discord_token: "PUT_DISCORD_BOT_TOKEN_HERE"
-  discord_application_id: "APPLICATION ID"
-  discord_guild_id: GUILD ID 
+  discord_application_id: 123456789012345678
+  discord_guild_id: 123456789012345678
 
-  # Optional private room for Mesh DMs if you do not want direct Discord DMs.
-  mesh_dm_channel_id: xxxxxxxxxxxxxxxxxxx
+  # Optional private room for Mesh direct messages if you do not want user DMs.
+  mesh_dm_channel_id: null
 
   # Optional direct Discord DM target user.
-  # This must be YOUR DISCORD USER ID, not the bot application ID.
-  mesh_dm_user_id: DISCORD USER ID
+  # If both are set, mesh_dm_user_id takes priority over mesh_dm_channel_id.
+  mesh_dm_user_id: null
 
   # Fixed avatar used by Mesh -> Discord webhook posts.
   meshcore_avatar_url: "https://raw.githubusercontent.com/meshcore-dev/MeshCore/main/images/icon.png"
@@ -25,43 +25,16 @@
   # ============================================================================
   # Logging
   # ============================================================================
-  #
-  # log_level controls the normal Python severity threshold.
-  #
-  # Allowed values:
-  # - DEBUG
-  # - INFO
-  # - WARNING
-  # - ERROR
-  # - CRITICAL
-  #
-  debug: true
-  log_level: "DEBUG"
+  # log_level is the normal Python severity threshold.
+  debug: false
+  log_level: "INFO"
 
-  #
-  # log_modes controls which MeshBridge logging categories are enabled.
-  #
-  # Allowed values:
-  # - DEBUG
-  # - SYSTEM
-  # - TRAFFICONLY
-  # - RFONLY
-  # - QUIET
-  #
-  # You can enable multiple categories at once.
-  #
-  # Example: traffic + RF together
-  #
+  # log_modes selects MeshBridge logging categories.
+  # Use a list or a comma-separated string.
   log_modes: [
+    "SYSTEM"
     "TRAFFICONLY"
-    "RFONLY"
   ]
-
-  #
-  # You can also use a comma-separated string if you prefer:
-  #
-  # log_modes: "TRAFFICONLY,RFONLY"
-  #
   log_file: "meshbridge.log"
 
   # ============================================================================
@@ -73,31 +46,27 @@
   neighbor_cache_limit: 5
 
   # ============================================================================
-  # Rate limiting
+  # Flood / rate limiting
   # ============================================================================
-  rate_limit_window_seconds: 15
-  rate_limit_max_messages: 6
+  rate_limit_window_seconds: 10
+  rate_limit_max_messages: 5
 
   # ============================================================================
   # Mesh chunking
   # ============================================================================
-  mesh_chunk_size: 120
-  mesh_chunk_delay_seconds: 2.5
+  mesh_chunk_size: 180
+  mesh_chunk_delay_seconds: 0.5
 
   # ============================================================================
-  # Webhook / reconnect
+  # Webhook / reconnect behavior
   # ============================================================================
   webhook_timeout_seconds: 10
   reconnect_initial_delay_seconds: 2
   reconnect_max_delay_seconds: 30
 
   # ============================================================================
-  # Auto-probe
+  # Auto-probe behavior
   # ============================================================================
-  #
-  # If enabled, the bridge may send path discovery when it hears a new advert,
-  # subject to the per-node cooldown below.
-  #
   auto_probe_on_advert: true
   auto_probe_min_interval_seconds: 300
 
@@ -106,10 +75,10 @@
   # ============================================================================
   routes: [
     {
-      name: "PUBLIC"
+      name: "public"
       mesh_channel: 0
-      discord_channel_id: CHANNEL ID
-      webhook_url: "https://discord.com/api/webhooks/PUT_ROUTE_0_WEBHOOK_HERE"
+      discord_channel_id: 123456789012345678
+      webhook_url: "https://discord.com/api/webhooks/PUT_ROUTE_WEBHOOK_HERE"
     }
   ]
 }

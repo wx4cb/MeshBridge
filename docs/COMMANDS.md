@@ -3,15 +3,15 @@
 ## `/bridge`
 - `/bridge pause` pauses all bridge traffic.
 - `/bridge resume` resumes all bridge traffic.
-- `/bridge status` shows bridge status and host stats.
-- `/bridge version` shows version and host stats.
-- `/bridge unhandled` shows recent unhandled mesh events.
+- `/bridge status` shows bridge status, process stats, memory stats, uptime, and reconnect count.
+- `/bridge version` shows the same version/status information as `/bridge status`.
+- `/bridge unhandled` shows the most recent unhandled MeshCore events kept in memory.
 
 ## `/mesh`
-- `/mesh advert [flood]` sends a mesh advert. The interaction is deferred first.
+- `/mesh advert [flood]` sends a mesh advert through the adapter and defers the interaction first.
 
 ## `/neighbors`
-- `/neighbors list` shows recent neighbors.
+- `/neighbors list` shows the 10 most recent neighbors.
 - `/neighbors show <prefix>` shows:
   - `display_name`
   - `confirmed_name`
@@ -22,19 +22,25 @@
   - `hop_count`
   - `snr`
   - `rssi`
+  - `rf_source`
   - `path`
   - `source`
 - `/neighbors probe <prefix>` sends path discovery for a confirmed keyed neighbor.
 
-### Provisional neighbors
-A provisional neighbor is name-only and does not yet have a confirmed mesh key. It is displayed as:
-- `Node Name (provisional)`
-
-Provisional neighbors cannot be probed.
-
 ## `/nodes`
-- `/nodes list` shows all currently known nodes, including provisional entries.
+- `/nodes list` shows up to 25 currently known nodes, including provisional entries.
+
+## Provisional neighbors
+A provisional neighbor is a name-only entry that has not yet been matched to a confirmed mesh key.
+
+Behavior:
+- displayed as `Node Name (provisional)`
+- shown by `/neighbors` and `/nodes`
+- not persisted to disk
+- cannot be probed
 
 ## Notes
-- Mesh → Discord uses webhook sender names for node identity.
-- Mesh DMs can route either to a Discord user or a Discord channel, depending on config.
+- Mesh -> Discord channel traffic uses the route webhook configured for that route.
+- Mesh direct messages bypass webhooks and go to `mesh_dm_user_id` first, or `mesh_dm_channel_id` if no DM user is configured.
+- All bridged output is plain text only.
+- Allowed mentions are disabled for bridged Discord sends.
