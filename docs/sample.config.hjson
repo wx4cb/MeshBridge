@@ -3,15 +3,15 @@
   # Discord settings
   # ============================================================================
   discord_token: "PUT_DISCORD_BOT_TOKEN_HERE"
-  discord_application_id: 1490809692601979003
-  discord_guild_id: 1490808954438025218
+  discord_application_id: "APPLICATION ID"
+  discord_guild_id: GUILD ID 
 
   # Optional private room for Mesh DMs if you do not want direct Discord DMs.
-  mesh_dm_channel_id: 1490809019370049810
+  mesh_dm_channel_id: xxxxxxxxxxxxxxxxxxx
 
   # Optional direct Discord DM target user.
-  # This should be YOUR DISCORD USER ID, not the bot application ID.
-  mesh_dm_user_id: 100713322097156096
+  # This must be YOUR DISCORD USER ID, not the bot application ID.
+  mesh_dm_user_id: DISCORD USER ID
 
   # Fixed avatar used by Mesh -> Discord webhook posts.
   meshcore_avatar_url: "https://raw.githubusercontent.com/meshcore-dev/MeshCore/main/images/icon.png"
@@ -26,15 +26,42 @@
   # Logging
   # ============================================================================
   #
-  # log_mode options:
+  # log_level controls the normal Python severity threshold.
+  #
+  # Allowed values:
   # - DEBUG
+  # - INFO
+  # - WARNING
+  # - ERROR
+  # - CRITICAL
+  #
+  debug: true
+  log_level: "DEBUG"
+
+  #
+  # log_modes controls which MeshBridge logging categories are enabled.
+  #
+  # Allowed values:
+  # - DEBUG
+  # - SYSTEM
   # - TRAFFICONLY
   # - RFONLY
   # - QUIET
   #
-  debug: true
-  log_level: "DEBUG"
-  log_mode: "TRAFFICONLY"
+  # You can enable multiple categories at once.
+  #
+  # Example: traffic + RF together
+  #
+  log_modes: [
+    "TRAFFICONLY"
+    "RFONLY"
+  ]
+
+  #
+  # You can also use a comma-separated string if you prefer:
+  #
+  # log_modes: "TRAFFICONLY,RFONLY"
+  #
   log_file: "meshbridge.log"
 
   # ============================================================================
@@ -68,7 +95,7 @@
   # Auto-probe
   # ============================================================================
   #
-  # If enabled, the bridge will send path discovery when it hears a new advert,
+  # If enabled, the bridge may send path discovery when it hears a new advert,
   # subject to the per-node cooldown below.
   #
   auto_probe_on_advert: true
@@ -81,20 +108,8 @@
     {
       name: "PUBLIC"
       mesh_channel: 0
-      discord_channel_id: 1490838749524005005
+      discord_channel_id: CHANNEL ID
       webhook_url: "https://discord.com/api/webhooks/PUT_ROUTE_0_WEBHOOK_HERE"
-    }
-    {
-      name: "Volusia Bridge"
-      mesh_channel: 1
-      discord_channel_id: 1490809019370049810
-      webhook_url: "https://discord.com/api/webhooks/PUT_ROUTE_1_WEBHOOK_HERE"
-    }
-    {
-      name: "WX4CB"
-      mesh_channel: 2
-      discord_channel_id: 1490842865339732100
-      webhook_url: "https://discord.com/api/webhooks/PUT_ROUTE_2_WEBHOOK_HERE"
     }
   ]
 }

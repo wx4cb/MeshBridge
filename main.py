@@ -1,4 +1,16 @@
-"""Application entry point for MeshBridge."""
+"""Application entry point for MeshBridge.
+
+This file is intentionally small:
+
+- parse CLI arguments
+- load config
+- initialize logging
+- build bridge + bot
+- start the bot
+
+Keeping startup simple makes it much easier to diagnose configuration and
+dependency problems.
+"""
 
 from __future__ import annotations
 
@@ -14,40 +26,55 @@ from meshbridge.logging_setup import setup_logging
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
-    """Build the CLI argument parser."""
+    """Build the CLI argument parser.
+
+    Returns:
+        Configured argument parser.
+    """
     parser = argparse.ArgumentParser(description="MeshBridge")
     parser.add_argument(
         "--config",
         default="config.hjson",
         help="Path to config file. HJSON is recommended so comments are allowed.",
     )
-    parser.add_argument("--log-level", default=None, help="Override log level")
+    parser.add_argument(
+        "--log-level",
+        default=None,
+        help="Override the configured log_level for this run.",
+    )
     parser.add_argument(
         "--check-config",
         action="store_true",
-        help="Validate configuration and exit without starting the bridge",
+        help="Validate configuration and exit without starting the bridge.",
     )
     return parser
 
 
 async def async_main() -> int:
-    """Run the async application main function."""
+    """Run the asynchronous application entry point.
+
+    Returns:
+        Process exit code.
+    """
     args = build_arg_parser().parse_args()
     config = AppConfig.load(Path(args.config))
 
+    # Allow one-off CLI override for log severity while leaving config file
+    # category selection (`log_modes`) intact.
     if args.log_level:
         config.log_level = args.log_level.upper()
 
-    setup_logging(config.log_level, config.log_file, config.log_mode)
+    setup_logging(config.log_level, config.log_file, config.log_modes)
     log = logging.getLogger(__name__)
 
     if args.check_config:
         log.info(
-            "Config OK: routes=%s mesh_dm_channel_id=%s mesh_dm_user_id=%s serial_port=%s",
+            "Config OK: routes=%s mesh_dm_channel_id=%s mesh_dm_user_id=%s serial_port=%s log_modes=%s",
             len(config.routes),
             config.mesh_dm_channel_id,
             config.mesh_dm_user_id,
             config.serial_port,
+            config.log_modes,
         )
         return 0
 
@@ -60,7 +87,11 @@ async def async_main() -> int:
 
 
 def main() -> int:
-    """Run the program synchronously."""
+    """Run the program synchronously.
+
+    Returns:
+        Process exit code.
+    """
     try:
         return asyncio.run(async_main())
     except KeyboardInterrupt:

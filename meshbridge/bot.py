@@ -18,6 +18,27 @@ from meshbridge.security import contains_mass_mention, detect_url, normalize_sen
 log = logging.getLogger(__name__)
 
 
+def format_neighbor_label(name: str | None, key: str | None) -> str:
+    """Format a readable label for neighbor/node output."""
+    key = key or "unknown"
+    short_key = key[:8] if not key.startswith("name:") else "unknown"
+
+    if key.startswith("name:"):
+        if name:
+            return f"{name} (provisional)"
+        return "unknown (provisional)"
+
+    if name:
+        return name
+
+    return short_key
+
+
+def is_provisional_neighbor_key(key: str | None) -> bool:
+    """Return True if the neighbor key is a provisional placeholder."""
+    return bool(key) and key.startswith("name:")
+
+
 class MeshBridgeBot(commands.Bot):
     """Discord bot for bridge control and Discord-side ingestion."""
 
@@ -164,12 +185,16 @@ class MeshBridgeBot(commands.Bot):
             if not is_admin_user(interaction):
                 await interaction.response.send_message("You do not have permission.", ephemeral=True)
                 return
+
+            await interaction.response.defer(ephemeral=True)
+
             try:
                 await self.bridge.mesh.send_advert(flood=flood)
             except Exception as exc:
-                await interaction.response.send_message(f"Advert failed: {exc}", ephemeral=True)
+                await interaction.edit_original_response(content=f"Advert failed: {exc}")
                 return
-            await interaction.response.send_message(f"Advert sent (flood={flood}).", ephemeral=True)
+
+            await interaction.edit_original_response(content=f"Advert sent (flood={flood}).")
 
         return group
 
@@ -186,8 +211,7 @@ class MeshBridgeBot(commands.Bot):
 
             lines = []
             for row in rows:
-                short_key = row.key[:8] if row.key else "unknown"
-                label = row.name or short_key
+                label = format_neighbor_label(row.name, row.key)
                 lines.append(
                     f"{label} | key={row.key} | reachability={row.reachability} | "
                     f"hops={row.hop_count} | last_seen={row.last_seen}"
@@ -201,15 +225,23 @@ class MeshBridgeBot(commands.Bot):
             if row is None:
                 await interaction.response.send_message("Neighbor not found.", ephemeral=True)
                 return
+
+            provisional = is_provisional_neighbor_key(row.key)
+            label = format_neighbor_label(row.name, row.key)
+            confirmed_name = row.name if not provisional else None
+
             text = "\n".join(
                 [
-                    f"name={row.name}",
+                    f"display_name={label}",
+                    f"confirmed_name={confirmed_name}",
+                    f"provisional={provisional}",
                     f"key={row.key}",
                     f"last_seen={row.last_seen}",
                     f"reachability={row.reachability}",
                     f"hop_count={row.hop_count}",
                     f"snr={row.snr}",
                     f"rssi={row.rssi}",
+                    f"rf_source={getattr(row, 'rf_source', None)}",
                     f"path={row.path}",
                     f"source={row.source}",
                 ]
@@ -221,16 +253,28 @@ class MeshBridgeBot(commands.Bot):
             if not is_admin_user(interaction):
                 await interaction.response.send_message("You do not have permission.", ephemeral=True)
                 return
+
             row = self.bridge.neighbors.get(prefix)
             if row is None:
                 await interaction.response.send_message("Neighbor not found.", ephemeral=True)
                 return
+
+            if is_provisional_neighbor_key(row.key):
+                await interaction.response.send_message(
+                    "That node is still provisional and does not have a confirmed mesh key yet.",
+                    ephemeral=True,
+                )
+                return
+
+            await interaction.response.defer(ephemeral=True)
+
             try:
                 await self.bridge.mesh.send_path_discovery(row.key)
             except Exception as exc:
-                await interaction.response.send_message(f"Probe failed: {exc}", ephemeral=True)
+                await interaction.edit_original_response(content=f"Probe failed: {exc}")
                 return
-            await interaction.response.send_message(f"Probe sent for {row.key}.", ephemeral=True)
+
+            await interaction.edit_original_response(content=f"Probe sent for {row.key}.")
 
         return group
 
@@ -247,8 +291,7 @@ class MeshBridgeBot(commands.Bot):
 
             lines: list[str] = []
             for row in rows[:25]:
-                short_key = row.key[:8] if row.key else "unknown"
-                label = row.name or short_key
+                label = format_neighbor_label(row.name, row.key)
                 lines.append(
                     f"{label} | key={row.key} | reachability={row.reachability} | "
                     f"hops={row.hop_count} | snr={row.snr} | rssi={row.rssi}"

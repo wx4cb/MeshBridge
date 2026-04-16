@@ -577,3 +577,292 @@ Traceback (most recent call last):
     ).__dict__
       ^^^^^^^^
 AttributeError: 'NeighborCacheEntry' object has no attribute '__dict__'. Did you mean: '__dir__'?
+2026-04-15 18:13:37,144 WARNING discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-04-15 18:13:37,144 WARNING discord.client: davey is not installed, voice will NOT be supported
+2026-04-15 18:13:39,670 INFO meshcore: Serial Connection started
+2026-04-15 18:13:39,672 INFO meshbridge.system: Connected to MeshCore
+2026-04-15 18:15:55,769 ERROR discord.app_commands.tree: Ignoring exception in command 'probe'
+Traceback (most recent call last):
+  File "/usr/src/mesh/MeshBridge/.venv/lib/python3.14/site-packages/discord/app_commands/commands.py", line 859, in _do_call
+    return await self._callback(interaction, **params)  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/src/mesh/MeshBridge/meshbridge/bot.py", line 233, in probe_cmd
+    await interaction.response.send_message(f"Probe sent for {row.key}.", ephemeral=True)
+  File "/usr/src/mesh/MeshBridge/.venv/lib/python3.14/site-packages/discord/interactions.py", line 1085, in send_message
+    data = await adapter.create_interaction_response(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/usr/src/mesh/MeshBridge/.venv/lib/python3.14/site-packages/discord/webhook/async_.py", line 224, in request
+    raise NotFound(response, data)
+discord.errors.NotFound: 404 Not Found (error code: 10062): Unknown interaction
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/src/mesh/MeshBridge/.venv/lib/python3.14/site-packages/discord/app_commands/tree.py", line 1302, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "/usr/src/mesh/MeshBridge/.venv/lib/python3.14/site-packages/discord/app_commands/commands.py", line 884, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/src/mesh/MeshBridge/.venv/lib/python3.14/site-packages/discord/app_commands/commands.py", line 877, in _do_call
+    raise CommandInvokeError(self, e) from e
+discord.app_commands.errors.CommandInvokeError: Command 'probe' raised an exception: NotFound: 404 Not Found (error code: 10062): Unknown interaction
+2026-04-15 19:21:52,775 WARNING discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-04-15 19:21:52,775 WARNING discord.client: davey is not installed, voice will NOT be supported
+2026-04-15 19:21:53,128 INFO meshcore: Serial Connection started
+2026-04-15 19:21:53,130 INFO meshbridge.system: Connected to MeshCore
+2026-04-15 19:26:33,045 WARNING discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-04-15 19:26:33,045 WARNING discord.client: davey is not installed, voice will NOT be supported
+2026-04-15 19:26:33,458 INFO meshcore: Serial Connection started
+2026-04-15 19:26:38,183 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-76.0 reachability=direct hops=0
+2026-04-15 19:26:38,183 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.75 rssi=-76.0 path=[]
+2026-04-15 19:26:38,877 INFO meshbridge.rf: Stored pending RF sample snr=11.5 rssi=-61.0 reachability=direct hops=0
+2026-04-15 19:26:38,877 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.5 rssi=-61.0 path=[]
+2026-04-15 19:28:57,393 INFO meshbridge.rf: Stored pending RF sample snr=12.5 rssi=-70.0 reachability=direct hops=0
+2026-04-15 19:28:57,393 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.5 rssi=-70.0 path=[]
+2026-04-15 19:28:57,396 INFO meshbridge.rf: Applied pending RF sample to CHANNEL_MSG_RECV sender=WX4CB RAV4 snr=12.5 rssi=-70.0
+2026-04-15 19:28:57,857 INFO meshbridge.rf: Stored pending RF sample snr=12.0 rssi=-62.0 reachability=unknown hops=None
+2026-04-15 19:28:57,857 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=12.0 rssi=-62.0 path=[]
+2026-04-15 19:29:24,280 INFO meshbridge.rf: Stored pending RF sample snr=11.5 rssi=-69.0 reachability=direct hops=0
+2026-04-15 19:29:24,281 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.5 rssi=-69.0 path=[]
+2026-04-15 19:29:24,563 INFO meshbridge.rf: ADVERTISEMENT key=8e86211820cce3eb2ace9ef8418959c93f6bdc208cca2f64cef1663f7268680f key_prefix=8e862118
+2026-04-15 19:29:24,563 INFO meshbridge.rf: Auto probe sending path discovery for key=8e86211820cce3eb2ace9ef8418959c93f6bdc208cca2f64cef1663f7268680f canonical=8e862118
+2026-04-15 19:29:25,001 INFO meshbridge.rf: Stored pending RF sample snr=12.5 rssi=-61.0 reachability=unknown hops=None
+2026-04-15 19:29:25,001 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=12.5 rssi=-61.0 path=[]
+2026-04-15 19:29:27,972 INFO meshbridge.rf: Auto path discovery sent for key=8e86211820cce3eb2ace9ef8418959c93f6bdc208cca2f64cef1663f7268680f result=None
+2026-04-15 19:30:06,848 INFO meshbridge.rf: Stored pending RF sample snr=11.5 rssi=-69.0 reachability=direct hops=0
+2026-04-15 19:30:06,848 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.5 rssi=-69.0 path=[]
+2026-04-15 19:30:07,343 INFO meshbridge.rf: Stored pending RF sample snr=12.5 rssi=-61.0 reachability=direct hops=0
+2026-04-15 19:30:07,344 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.5 rssi=-61.0 path=[]
+2026-04-15 19:30:10,484 INFO meshbridge.rf: Stored pending RF sample snr=12.25 rssi=-69.0 reachability=direct hops=0
+2026-04-15 19:30:10,484 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.25 rssi=-69.0 path=[]
+2026-04-15 19:30:15,607 INFO meshbridge.rf: Stored pending RF sample snr=12.0 rssi=-69.0 reachability=direct hops=0
+2026-04-15 19:30:15,608 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.0 rssi=-69.0 path=[]
+2026-04-15 19:30:16,419 INFO meshbridge.rf: Stored pending RF sample snr=12.25 rssi=-61.0 reachability=direct hops=0
+2026-04-15 19:30:16,419 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.25 rssi=-61.0 path=[]
+2026-04-15 19:30:17,566 INFO meshbridge.rf: Stored pending RF sample snr=12.0 rssi=-61.0 reachability=direct hops=0
+2026-04-15 19:30:17,566 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.0 rssi=-61.0 path=[]
+2026-04-15 19:30:18,090 INFO meshbridge.rf: ADVERTISEMENT key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 key_prefix=dbf23a42
+2026-04-15 19:30:18,090 INFO meshbridge.rf: Auto probe sending path discovery for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 canonical=dbf23a42
+2026-04-15 19:30:21,499 INFO meshbridge.rf: Auto path discovery sent for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 result=None
+2026-04-15 19:30:30,668 INFO meshbridge.rf: Stored pending RF sample snr=12.0 rssi=-69.0 reachability=direct hops=0
+2026-04-15 19:30:30,668 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.0 rssi=-69.0 path=[]
+2026-04-15 19:30:31,160 INFO meshbridge.rf: Stored pending RF sample snr=12.0 rssi=-63.0 reachability=direct hops=0
+2026-04-15 19:30:31,160 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.0 rssi=-63.0 path=[]
+2026-04-15 19:30:56,179 INFO meshbridge.rf: Stored pending RF sample snr=12.0 rssi=-70.0 reachability=direct hops=0
+2026-04-15 19:30:56,179 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.0 rssi=-70.0 path=[]
+2026-04-15 19:30:56,182 INFO meshbridge.rf: Applied pending RF sample to CHANNEL_MSG_RECV sender=WX4CB RAV4 snr=12.0 rssi=-70.0
+2026-04-15 19:30:56,717 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-61.0 reachability=unknown hops=None
+2026-04-15 19:30:56,717 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=11.75 rssi=-61.0 path=[]
+2026-04-15 19:31:24,182 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-60.0 reachability=unknown hops=None
+2026-04-15 19:31:24,182 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=11.75 rssi=-60.0 path=[]
+2026-04-15 19:34:36,291 INFO meshbridge.rf: Stored pending RF sample snr=11.5 rssi=-68.0 reachability=unknown hops=None
+2026-04-15 19:34:36,292 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=11.5 rssi=-68.0 path=[]
+2026-04-15 19:35:47,067 INFO meshbridge.rf: Stored pending RF sample snr=11.25 rssi=-76.0 reachability=unknown hops=None
+2026-04-15 19:35:47,068 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=11.25 rssi=-76.0 path=[]
+2026-04-15 19:35:48,340 INFO meshbridge.rf: ADVERTISEMENT key=d9b9cd494e0b4b6b54dd05eb34fb66dbddc7ef6aaaf7785f0a45074aae603197 key_prefix=d9b9cd49
+2026-04-15 19:35:48,340 INFO meshbridge.rf: Auto probe sending path discovery for key=d9b9cd494e0b4b6b54dd05eb34fb66dbddc7ef6aaaf7785f0a45074aae603197 canonical=d9b9cd49
+2026-04-15 19:35:48,903 INFO meshbridge.rf: Stored pending RF sample snr=10.5 rssi=-89.0 reachability=unknown hops=None
+2026-04-15 19:35:48,903 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=10.5 rssi=-89.0 path=[]
+2026-04-15 19:35:51,793 INFO meshbridge.rf: Auto path discovery sent for key=d9b9cd494e0b4b6b54dd05eb34fb66dbddc7ef6aaaf7785f0a45074aae603197 result=None
+2026-04-15 19:36:40,829 INFO meshbridge.rf: Stored pending RF sample snr=11.25 rssi=-66.0 reachability=unknown hops=None
+2026-04-15 19:36:40,829 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=11.25 rssi=-66.0 path=[]
+2026-04-15 19:36:41,112 INFO meshbridge.rf: ADVERTISEMENT key=d9b9cd494e0b4b6b54dd05eb34fb66dbddc7ef6aaaf7785f0a45074aae603197 key_prefix=d9b9cd49
+2026-04-15 19:36:41,112 INFO meshbridge.rf: Auto probe skipped: cooldown key=d9b9cd49 age=53 required=300
+2026-04-15 20:08:29,894 WARNING discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-04-15 20:08:29,894 WARNING discord.client: davey is not installed, voice will NOT be supported
+2026-04-15 20:08:30,244 INFO meshcore: Serial Connection started
+2026-04-15 20:15:56,421 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-69.0 reachability=direct hops=0
+2026-04-15 20:15:56,421 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.75 rssi=-69.0 path=[]
+2026-04-15 20:15:56,945 INFO meshbridge.rf: ADVERTISEMENT key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 key_prefix=dbf23a42
+2026-04-15 20:15:56,945 INFO meshbridge.rf: Auto probe sending path discovery for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 canonical=dbf23a42
+2026-04-15 20:15:57,537 INFO meshbridge.rf: Stored pending RF sample snr=11.25 rssi=-69.0 reachability=direct hops=0
+2026-04-15 20:15:57,537 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.25 rssi=-69.0 path=[]
+2026-04-15 20:15:57,539 INFO meshbridge.rf: PATH_RESPONSE key=None key_prefix=None reachability=direct hops=0 snr=None rssi=None path=[]
+2026-04-15 20:15:57,539 INFO meshbridge.rf: Auto path discovery sent for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 result=Event(type=<EventType.PATH_RESPONSE: 'path_response'>, payload={'pubkey_pre': 'dbf23a422d8c', 'out_path_len': 0, 'out_path_hash_len': 1, 'out_path': '', 'in_path_len': 0, 'in_path_hash_len': 1, 'in_path': ''}, attributes={'pubkey_pre': 'dbf23a422d8c'})
+2026-04-15 20:25:46,413 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-73.0 reachability=direct hops=0
+2026-04-15 20:25:46,413 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.75 rssi=-73.0 path=[]
+2026-04-15 20:25:46,416 INFO meshbridge.rf: Applied pending RF sample to CHANNEL_MSG_RECV sender=WX4CB RAV4 snr=11.75 rssi=-73.0
+2026-04-15 20:25:46,758 INFO meshbridge.rf: Stored pending RF sample snr=12.0 rssi=-62.0 reachability=unknown hops=None
+2026-04-15 20:25:46,758 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=12.0 rssi=-62.0 path=[]
+2026-04-15 20:25:54,738 INFO meshbridge.rf: Stored pending RF sample snr=11.5 rssi=-62.0 reachability=unknown hops=None
+2026-04-15 20:25:54,738 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=11.5 rssi=-62.0 path=[]
+2026-04-15 20:26:36,101 WARNING discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-04-15 20:26:36,101 WARNING discord.client: davey is not installed, voice will NOT be supported
+2026-04-15 20:26:36,867 INFO meshcore: Serial Connection started
+2026-04-15 20:26:43,093 INFO meshbridge.rf: Stored pending RF sample snr=12.0 rssi=-69.0 reachability=direct hops=0
+2026-04-15 20:26:43,093 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.0 rssi=-69.0 path=[]
+2026-04-15 20:26:43,096 INFO meshbridge.rf: Applied pending RF sample to CHANNEL_MSG_RECV sender=WX4CB RAV4 snr=12.0 rssi=-69.0
+2026-04-15 20:26:43,296 INFO meshbridge.rf: Stored pending RF sample snr=12.0 rssi=-66.0 reachability=unknown hops=None
+2026-04-15 20:26:43,296 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=12.0 rssi=-66.0 path=[]
+2026-04-15 20:27:06,967 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-65.0 reachability=unknown hops=None
+2026-04-15 20:27:06,967 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=11.75 rssi=-65.0 path=[]
+2026-04-15 20:27:39,715 INFO meshbridge.rf: Stored pending RF sample snr=12.25 rssi=-64.0 reachability=unknown hops=None
+2026-04-15 20:27:39,716 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=12.25 rssi=-64.0 path=[]
+2026-04-15 20:27:42,720 INFO meshbridge.rf: Stored pending RF sample snr=12.25 rssi=-67.0 reachability=direct hops=0
+2026-04-15 20:27:42,720 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.25 rssi=-67.0 path=[]
+2026-04-15 20:27:43,258 INFO meshbridge.rf: ADVERTISEMENT key=8e86211820cce3eb2ace9ef8418959c93f6bdc208cca2f64cef1663f7268680f key_prefix=8e862118
+2026-04-15 20:27:43,258 INFO meshbridge.rf: Auto probe sending path discovery for key=8e86211820cce3eb2ace9ef8418959c93f6bdc208cca2f64cef1663f7268680f canonical=8e862118
+2026-04-15 20:27:43,845 INFO meshbridge.rf: Stored pending RF sample snr=12.25 rssi=-69.0 reachability=unknown hops=None
+2026-04-15 20:27:43,845 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=12.25 rssi=-69.0 path=[]
+2026-04-15 20:27:46,666 INFO meshbridge.rf: Auto path discovery sent for key=8e86211820cce3eb2ace9ef8418959c93f6bdc208cca2f64cef1663f7268680f result=None
+2026-04-15 20:44:20,272 WARNING discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-04-15 20:44:20,272 WARNING discord.client: davey is not installed, voice will NOT be supported
+2026-04-15 20:44:20,718 INFO meshcore: Serial Connection started
+2026-04-15 20:47:04,680 INFO meshbridge.rf: Stored pending RF sample snr=11.5 rssi=-62.0 reachability=unknown hops=None
+2026-04-15 20:47:04,680 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=11.5 rssi=-62.0 path=[]
+2026-04-15 20:47:35,446 INFO meshbridge.rf: Stored pending RF sample snr=12.25 rssi=-77.0 reachability=direct hops=0
+2026-04-15 20:47:35,446 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.25 rssi=-77.0 path=[]
+2026-04-15 20:47:35,448 INFO meshbridge.rf: Applied pending RF sample to CHANNEL_MSG_RECV sender=WX4CB RAV4 snr=12.25 rssi=-77.0
+2026-04-15 20:47:35,823 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-63.0 reachability=unknown hops=None
+2026-04-15 20:47:35,823 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=11.75 rssi=-63.0 path=[]
+2026-04-15 20:47:57,906 INFO meshbridge.rf: Stored pending RF sample snr=11.25 rssi=-76.0 reachability=direct hops=0
+2026-04-15 20:47:57,907 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.25 rssi=-76.0 path=[]
+2026-04-15 20:47:58,183 INFO meshbridge.rf: ADVERTISEMENT key=8e86211820cce3eb2ace9ef8418959c93f6bdc208cca2f64cef1663f7268680f key_prefix=8e862118
+2026-04-15 20:47:58,183 INFO meshbridge.rf: Auto probe sending path discovery for key=8e86211820cce3eb2ace9ef8418959c93f6bdc208cca2f64cef1663f7268680f canonical=8e862118
+2026-04-15 20:47:58,655 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-62.0 reachability=unknown hops=None
+2026-04-15 20:47:58,655 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=11.75 rssi=-62.0 path=[]
+2026-04-15 20:48:01,592 INFO meshbridge.rf: Auto path discovery sent for key=8e86211820cce3eb2ace9ef8418959c93f6bdc208cca2f64cef1663f7268680f result=None
+2026-04-15 20:49:06,121 INFO meshbridge.rf: Stored pending RF sample snr=12.5 rssi=-63.0 reachability=unknown hops=None
+2026-04-15 20:49:06,121 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=12.5 rssi=-63.0 path=[]
+2026-04-15 20:53:40,594 INFO meshbridge.rf: Stored pending RF sample snr=12.25 rssi=-58.0 reachability=unknown hops=None
+2026-04-15 20:53:40,594 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=12.25 rssi=-58.0 path=[]
+2026-04-15 21:15:56,372 INFO meshbridge.rf: Stored pending RF sample snr=11.5 rssi=-66.0 reachability=direct hops=0
+2026-04-15 21:15:56,373 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.5 rssi=-66.0 path=[]
+2026-04-15 21:15:56,903 INFO meshbridge.rf: ADVERTISEMENT key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 key_prefix=dbf23a42
+2026-04-15 21:15:56,903 INFO meshbridge.rf: Auto probe sending path discovery for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 canonical=dbf23a42
+2026-04-15 21:15:57,496 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-64.0 reachability=direct hops=0
+2026-04-15 21:15:57,496 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.75 rssi=-64.0 path=[]
+2026-04-15 21:15:57,498 INFO meshbridge.rf: PATH_RESPONSE key=None key_prefix=None reachability=direct hops=0 snr=None rssi=None path=[]
+2026-04-15 21:15:57,498 INFO meshbridge.rf: Auto path discovery sent for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 result=Event(type=<EventType.PATH_RESPONSE: 'path_response'>, payload={'pubkey_pre': 'dbf23a422d8c', 'out_path_len': 0, 'out_path_hash_len': 1, 'out_path': '', 'in_path_len': 0, 'in_path_hash_len': 1, 'in_path': ''}, attributes={'pubkey_pre': 'dbf23a422d8c'})
+2026-04-15 22:15:56,227 INFO meshbridge.rf: Stored pending RF sample snr=11.5 rssi=-64.0 reachability=direct hops=0
+2026-04-15 22:15:56,227 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.5 rssi=-64.0 path=[]
+2026-04-15 22:15:56,516 INFO meshbridge.rf: ADVERTISEMENT key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 key_prefix=dbf23a42
+2026-04-15 22:15:56,516 INFO meshbridge.rf: Auto probe sending path discovery for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 canonical=dbf23a42
+2026-04-15 22:15:57,108 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-65.0 reachability=direct hops=0
+2026-04-15 22:15:57,108 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.75 rssi=-65.0 path=[]
+2026-04-15 22:15:57,110 INFO meshbridge.rf: PATH_RESPONSE key=None key_prefix=None reachability=direct hops=0 snr=None rssi=None path=[]
+2026-04-15 22:15:57,110 INFO meshbridge.rf: Auto path discovery sent for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 result=Event(type=<EventType.PATH_RESPONSE: 'path_response'>, payload={'pubkey_pre': 'dbf23a422d8c', 'out_path_len': 0, 'out_path_hash_len': 1, 'out_path': '', 'in_path_len': 0, 'in_path_hash_len': 1, 'in_path': ''}, attributes={'pubkey_pre': 'dbf23a422d8c'})
+2026-04-15 22:16:28,805 INFO meshbridge.rf: Stored pending RF sample snr=12.5 rssi=-63.0 reachability=unknown hops=None
+2026-04-15 22:16:28,805 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=12.5 rssi=-63.0 path=[]
+2026-04-15 22:17:31,810 INFO meshbridge.rf: Stored pending RF sample snr=11.5 rssi=-69.0 reachability=unknown hops=None
+2026-04-15 22:17:31,811 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=11.5 rssi=-69.0 path=[]
+2026-04-15 22:17:32,343 INFO meshbridge.rf: ADVERTISEMENT key=fa30eacdcb67ae90e606587f8c2f797982a70e96b3ad72e4cecbf41e0f764808 key_prefix=fa30eacd
+2026-04-15 22:17:32,344 INFO meshbridge.rf: Auto probe sending path discovery for key=fa30eacdcb67ae90e606587f8c2f797982a70e96b3ad72e4cecbf41e0f764808 canonical=fa30eacd
+2026-04-15 22:17:32,886 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-69.0 reachability=unknown hops=None
+2026-04-15 22:17:32,886 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=11.75 rssi=-69.0 path=[]
+2026-04-15 22:17:35,795 INFO meshbridge.rf: Auto path discovery sent for key=fa30eacdcb67ae90e606587f8c2f797982a70e96b3ad72e4cecbf41e0f764808 result=None
+2026-04-15 23:15:56,162 INFO meshbridge.rf: Stored pending RF sample snr=11.5 rssi=-69.0 reachability=direct hops=0
+2026-04-15 23:15:56,162 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.5 rssi=-69.0 path=[]
+2026-04-15 23:15:56,692 INFO meshbridge.rf: ADVERTISEMENT key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 key_prefix=dbf23a42
+2026-04-15 23:15:56,692 INFO meshbridge.rf: Auto probe sending path discovery for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 canonical=dbf23a42
+2026-04-15 23:15:57,286 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-68.0 reachability=direct hops=0
+2026-04-15 23:15:57,286 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.75 rssi=-68.0 path=[]
+2026-04-15 23:15:57,287 INFO meshbridge.rf: PATH_RESPONSE key=None key_prefix=None reachability=direct hops=0 snr=None rssi=None path=[]
+2026-04-15 23:15:57,287 INFO meshbridge.rf: Auto path discovery sent for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 result=Event(type=<EventType.PATH_RESPONSE: 'path_response'>, payload={'pubkey_pre': 'dbf23a422d8c', 'out_path_len': 0, 'out_path_hash_len': 1, 'out_path': '', 'in_path_len': 0, 'in_path_hash_len': 1, 'in_path': ''}, attributes={'pubkey_pre': 'dbf23a422d8c'})
+2026-04-16 00:15:56,107 INFO meshbridge.rf: Stored pending RF sample snr=12.0 rssi=-62.0 reachability=direct hops=0
+2026-04-16 00:15:56,107 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.0 rssi=-62.0 path=[]
+2026-04-16 00:15:56,390 INFO meshbridge.rf: ADVERTISEMENT key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 key_prefix=dbf23a42
+2026-04-16 00:15:56,390 INFO meshbridge.rf: Auto probe sending path discovery for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 canonical=dbf23a42
+2026-04-16 00:15:56,983 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-62.0 reachability=direct hops=0
+2026-04-16 00:15:56,983 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.75 rssi=-62.0 path=[]
+2026-04-16 00:15:56,984 INFO meshbridge.rf: PATH_RESPONSE key=None key_prefix=None reachability=direct hops=0 snr=None rssi=None path=[]
+2026-04-16 00:15:56,984 INFO meshbridge.rf: Auto path discovery sent for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 result=Event(type=<EventType.PATH_RESPONSE: 'path_response'>, payload={'pubkey_pre': 'dbf23a422d8c', 'out_path_len': 0, 'out_path_hash_len': 1, 'out_path': '', 'in_path_len': 0, 'in_path_hash_len': 1, 'in_path': ''}, attributes={'pubkey_pre': 'dbf23a422d8c'})
+2026-04-16 01:15:55,986 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-63.0 reachability=direct hops=0
+2026-04-16 01:15:55,987 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.75 rssi=-63.0 path=[]
+2026-04-16 01:15:56,266 INFO meshbridge.rf: ADVERTISEMENT key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 key_prefix=dbf23a42
+2026-04-16 01:15:56,266 INFO meshbridge.rf: Auto probe sending path discovery for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 canonical=dbf23a42
+2026-04-16 01:15:56,859 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-63.0 reachability=direct hops=0
+2026-04-16 01:15:56,859 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.75 rssi=-63.0 path=[]
+2026-04-16 01:15:56,860 INFO meshbridge.rf: PATH_RESPONSE key=None key_prefix=None reachability=direct hops=0 snr=None rssi=None path=[]
+2026-04-16 01:15:56,861 INFO meshbridge.rf: Auto path discovery sent for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 result=Event(type=<EventType.PATH_RESPONSE: 'path_response'>, payload={'pubkey_pre': 'dbf23a422d8c', 'out_path_len': 0, 'out_path_hash_len': 1, 'out_path': '', 'in_path_len': 0, 'in_path_hash_len': 1, 'in_path': ''}, attributes={'pubkey_pre': 'dbf23a422d8c'})
+2026-04-16 02:15:55,897 INFO meshbridge.rf: Stored pending RF sample snr=12.0 rssi=-63.0 reachability=direct hops=0
+2026-04-16 02:15:55,897 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.0 rssi=-63.0 path=[]
+2026-04-16 02:15:56,177 INFO meshbridge.rf: ADVERTISEMENT key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 key_prefix=dbf23a42
+2026-04-16 02:15:56,177 INFO meshbridge.rf: Auto probe sending path discovery for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 canonical=dbf23a42
+2026-04-16 02:15:56,769 INFO meshbridge.rf: Stored pending RF sample snr=12.75 rssi=-63.0 reachability=direct hops=0
+2026-04-16 02:15:56,769 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.75 rssi=-63.0 path=[]
+2026-04-16 02:15:56,771 INFO meshbridge.rf: PATH_RESPONSE key=None key_prefix=None reachability=direct hops=0 snr=None rssi=None path=[]
+2026-04-16 02:15:56,771 INFO meshbridge.rf: Auto path discovery sent for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 result=Event(type=<EventType.PATH_RESPONSE: 'path_response'>, payload={'pubkey_pre': 'dbf23a422d8c', 'out_path_len': 0, 'out_path_hash_len': 1, 'out_path': '', 'in_path_len': 0, 'in_path_hash_len': 1, 'in_path': ''}, attributes={'pubkey_pre': 'dbf23a422d8c'})
+2026-04-16 03:15:55,853 INFO meshbridge.rf: Stored pending RF sample snr=12.0 rssi=-64.0 reachability=direct hops=0
+2026-04-16 03:15:55,854 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.0 rssi=-64.0 path=[]
+2026-04-16 03:15:56,133 INFO meshbridge.rf: ADVERTISEMENT key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 key_prefix=dbf23a42
+2026-04-16 03:15:56,133 INFO meshbridge.rf: Auto probe sending path discovery for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 canonical=dbf23a42
+2026-04-16 03:15:56,726 INFO meshbridge.rf: Stored pending RF sample snr=11.25 rssi=-65.0 reachability=direct hops=0
+2026-04-16 03:15:56,726 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.25 rssi=-65.0 path=[]
+2026-04-16 03:15:56,727 INFO meshbridge.rf: PATH_RESPONSE key=None key_prefix=None reachability=direct hops=0 snr=None rssi=None path=[]
+2026-04-16 03:15:56,728 INFO meshbridge.rf: Auto path discovery sent for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 result=Event(type=<EventType.PATH_RESPONSE: 'path_response'>, payload={'pubkey_pre': 'dbf23a422d8c', 'out_path_len': 0, 'out_path_hash_len': 1, 'out_path': '', 'in_path_len': 0, 'in_path_hash_len': 1, 'in_path': ''}, attributes={'pubkey_pre': 'dbf23a422d8c'})
+2026-04-16 04:15:55,740 INFO meshbridge.rf: Stored pending RF sample snr=12.0 rssi=-61.0 reachability=direct hops=0
+2026-04-16 04:15:55,741 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.0 rssi=-61.0 path=[]
+2026-04-16 04:15:56,023 INFO meshbridge.rf: ADVERTISEMENT key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 key_prefix=dbf23a42
+2026-04-16 04:15:56,023 INFO meshbridge.rf: Auto probe sending path discovery for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 canonical=dbf23a42
+2026-04-16 04:15:56,977 INFO meshbridge.rf: Stored pending RF sample snr=12.0 rssi=-61.0 reachability=direct hops=0
+2026-04-16 04:15:56,977 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.0 rssi=-61.0 path=[]
+2026-04-16 04:15:56,979 INFO meshbridge.rf: PATH_RESPONSE key=None key_prefix=None reachability=direct hops=0 snr=None rssi=None path=[]
+2026-04-16 04:15:56,979 INFO meshbridge.rf: Auto path discovery sent for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 result=Event(type=<EventType.PATH_RESPONSE: 'path_response'>, payload={'pubkey_pre': 'dbf23a422d8c', 'out_path_len': 0, 'out_path_hash_len': 1, 'out_path': '', 'in_path_len': 0, 'in_path_hash_len': 1, 'in_path': ''}, attributes={'pubkey_pre': 'dbf23a422d8c'})
+2026-04-16 05:15:55,661 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-68.0 reachability=direct hops=0
+2026-04-16 05:15:55,662 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.75 rssi=-68.0 path=[]
+2026-04-16 05:15:55,937 INFO meshbridge.rf: ADVERTISEMENT key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 key_prefix=dbf23a42
+2026-04-16 05:15:55,937 INFO meshbridge.rf: Auto probe sending path discovery for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 canonical=dbf23a42
+2026-04-16 05:15:56,531 INFO meshbridge.rf: Stored pending RF sample snr=12.25 rssi=-67.0 reachability=direct hops=0
+2026-04-16 05:15:56,531 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.25 rssi=-67.0 path=[]
+2026-04-16 05:15:56,532 INFO meshbridge.rf: PATH_RESPONSE key=None key_prefix=None reachability=direct hops=0 snr=None rssi=None path=[]
+2026-04-16 05:15:56,532 INFO meshbridge.rf: Auto path discovery sent for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 result=Event(type=<EventType.PATH_RESPONSE: 'path_response'>, payload={'pubkey_pre': 'dbf23a422d8c', 'out_path_len': 0, 'out_path_hash_len': 1, 'out_path': '', 'in_path_len': 0, 'in_path_hash_len': 1, 'in_path': ''}, attributes={'pubkey_pre': 'dbf23a422d8c'})
+2026-04-16 06:15:55,719 INFO meshbridge.rf: Stored pending RF sample snr=12.5 rssi=-67.0 reachability=direct hops=0
+2026-04-16 06:15:55,719 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.5 rssi=-67.0 path=[]
+2026-04-16 06:15:55,998 INFO meshbridge.rf: ADVERTISEMENT key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 key_prefix=dbf23a42
+2026-04-16 06:15:55,998 INFO meshbridge.rf: Auto probe sending path discovery for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 canonical=dbf23a42
+2026-04-16 06:15:56,591 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-67.0 reachability=direct hops=0
+2026-04-16 06:15:56,591 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.75 rssi=-67.0 path=[]
+2026-04-16 06:15:56,592 INFO meshbridge.rf: PATH_RESPONSE key=None key_prefix=None reachability=direct hops=0 snr=None rssi=None path=[]
+2026-04-16 06:15:56,592 INFO meshbridge.rf: Auto path discovery sent for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 result=Event(type=<EventType.PATH_RESPONSE: 'path_response'>, payload={'pubkey_pre': 'dbf23a422d8c', 'out_path_len': 0, 'out_path_hash_len': 1, 'out_path': '', 'in_path_len': 0, 'in_path_hash_len': 1, 'in_path': ''}, attributes={'pubkey_pre': 'dbf23a422d8c'})
+2026-04-16 07:15:55,531 INFO meshbridge.rf: Stored pending RF sample snr=11.5 rssi=-62.0 reachability=direct hops=0
+2026-04-16 07:15:55,531 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.5 rssi=-62.0 path=[]
+2026-04-16 07:15:55,811 INFO meshbridge.rf: ADVERTISEMENT key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 key_prefix=dbf23a42
+2026-04-16 07:15:55,811 INFO meshbridge.rf: Auto probe sending path discovery for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 canonical=dbf23a42
+2026-04-16 07:15:56,886 INFO meshbridge.rf: Stored pending RF sample snr=12.25 rssi=-62.0 reachability=direct hops=0
+2026-04-16 07:15:56,887 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.25 rssi=-62.0 path=[]
+2026-04-16 07:15:56,888 INFO meshbridge.rf: PATH_RESPONSE key=None key_prefix=None reachability=direct hops=0 snr=None rssi=None path=[]
+2026-04-16 07:15:56,888 INFO meshbridge.rf: Auto path discovery sent for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 result=Event(type=<EventType.PATH_RESPONSE: 'path_response'>, payload={'pubkey_pre': 'dbf23a422d8c', 'out_path_len': 0, 'out_path_hash_len': 1, 'out_path': '', 'in_path_len': 0, 'in_path_hash_len': 1, 'in_path': ''}, attributes={'pubkey_pre': 'dbf23a422d8c'})
+2026-04-16 07:17:51,238 INFO meshbridge.rf: Stored pending RF sample snr=11.5 rssi=-61.0 reachability=unknown hops=None
+2026-04-16 07:17:51,238 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=11.5 rssi=-61.0 path=[]
+2026-04-16 07:18:22,478 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-62.0 reachability=unknown hops=None
+2026-04-16 07:18:22,478 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=11.75 rssi=-62.0 path=[]
+2026-04-16 07:20:25,184 INFO meshbridge.rf: Stored pending RF sample snr=11.5 rssi=-61.0 reachability=unknown hops=None
+2026-04-16 07:20:25,184 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=11.5 rssi=-61.0 path=[]
+2026-04-16 07:20:26,466 INFO meshbridge.rf: ADVERTISEMENT key=7456fdd17c354cded61d5141538a1fb734e15b259fd2917b9fdbdf882347494b key_prefix=7456fdd1
+2026-04-16 07:20:26,466 INFO meshbridge.rf: Auto probe sending path discovery for key=7456fdd17c354cded61d5141538a1fb734e15b259fd2917b9fdbdf882347494b canonical=7456fdd1
+2026-04-16 07:20:27,051 INFO meshbridge.rf: Stored pending RF sample snr=12.25 rssi=-60.0 reachability=unknown hops=None
+2026-04-16 07:20:27,051 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=12.25 rssi=-60.0 path=[]
+2026-04-16 07:20:29,919 INFO meshbridge.rf: Auto path discovery sent for key=7456fdd17c354cded61d5141538a1fb734e15b259fd2917b9fdbdf882347494b result=None
+2026-04-16 07:20:35,776 INFO meshbridge.rf: Stored pending RF sample snr=12.0 rssi=-61.0 reachability=unknown hops=None
+2026-04-16 07:20:35,776 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=12.0 rssi=-61.0 path=[]
+2026-04-16 07:25:03,528 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-65.0 reachability=unknown hops=None
+2026-04-16 07:25:03,528 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=11.75 rssi=-65.0 path=[]
+2026-04-16 09:50:32,363 WARNING discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-04-16 09:50:32,363 WARNING discord.client: davey is not installed, voice will NOT be supported
+2026-04-16 09:50:32,916 INFO meshcore: Serial Connection started
+2026-04-16 09:52:53,453 WARNING discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-04-16 09:52:53,453 WARNING discord.client: davey is not installed, voice will NOT be supported
+2026-04-16 09:52:53,866 INFO meshcore: Serial Connection started
+2026-04-16 09:56:32,415 INFO meshbridge.traffic: Mesh -> Discord route=WX4CB sender=WX4CB RAV4 text='Test'
+2026-04-16 11:08:31,205 WARNING discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-04-16 11:08:31,205 WARNING discord.client: davey is not installed, voice will NOT be supported
+2026-04-16 11:08:31,660 INFO meshcore: Serial Connection started
+2026-04-16 11:08:31,662 INFO meshbridge.system: Connected to MeshCore
+2026-04-16 11:15:55,144 DEBUG meshbridge.rf: Built mesh message: sender='Deltona Digi' key=None key_prefix=None text='' event=RX_LOG_DATA
+2026-04-16 11:15:55,144 DEBUG meshbridge.rf: RX_LOG_DATA raw payload: {'raw_hex': '2fc01200dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d1645145fde069ae67a251a141a5324a8cfb10af41e239e8989d30a8f308fe24ed125ec7a78754f550dd63f18fe4dddba739faa5b8bd95c3448cdfa8d67d5d57b1da3893b60200923fb0b901a3a728fb44656c746f6e612044696769', 'recv_time': 1776352555, 'snr': 11.75, 'rssi': -64, 'payload': '1200dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d1645145fde069ae67a251a141a5324a8cfb10af41e239e8989d30a8f308fe24ed125ec7a78754f550dd63f18fe4dddba739faa5b8bd95c3448cdfa8d67d5d57b1da3893b60200923fb0b901a3a728fb44656c746f6e612044696769', 'payload_length': 123, 'header': 18, 'route_type': 2, 'route_typename': 'DIRECT', 'payload_type': 4, 'payload_typename': 'ADVERT', 'payload_ver': 0, 'path_len': 0, 'path_hash_size': 1, 'path': '', 'pkt_payload': b'\xdb\xf2:B-\x8c,\xf7\xf1\x8c\x15\\"\x90\rm\x0c,{\xed~\xd9Nr\xcb;\x81\xacD\xd1dQE\xfd\xe0i\xaeg\xa2Q\xa1A\xa52J\x8c\xfb\x10\xafA\xe29\xe8\x98\x9d0\xa8\xf3\x08\xfe$\xed\x12^\xc7\xa7\x87T\xf5P\xddc\xf1\x8f\xe4\xdd\xdb\xa79\xfa\xa5\xb8\xbd\x95\xc3D\x8c\xdf\xa8\xd6}]W\xb1\xda8\x93\xb6\x02\x00\x92?\xb0\xb9\x01\xa3\xa7(\xfbDeltona Digi', 'pkt_hash': 624786722, 'adv_name': 'Deltona Digi', 'adv_key': 'dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451', 'adv_timestamp': 1776352581, 'signature': 'ae67a251a141a5324a8cfb10af41e239e8989d30a8f308fe24ed125ec7a78754f550dd63f18fe4dddba739faa5b8bd95c3448cdfa8d67d5d57b1da3893b60200', 'adv_flags': 146, 'adv_type': 2, 'adv_lat': 28.946495, 'adv_lon': -81.221725}
+2026-04-16 11:15:55,144 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-64.0 reachability=direct hops=0
+2026-04-16 11:15:55,144 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.75 rssi=-64.0 path=[]
+2026-04-16 11:15:55,430 DEBUG meshbridge.rf: Built mesh message: sender='dbf23a42' key='dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451' key_prefix='dbf23a42' text='' event=ADVERTISEMENT
+2026-04-16 11:15:55,431 INFO meshbridge.rf: ADVERTISEMENT key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 key_prefix=dbf23a42
+2026-04-16 11:15:55,431 INFO meshbridge.rf: Auto probe sending path discovery for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 canonical=dbf23a42
+2026-04-16 11:15:56,023 DEBUG meshbridge.rf: Built mesh message: sender='unknown' key=None key_prefix=None text='' event=RX_LOG_DATA
+2026-04-16 11:15:56,023 DEBUG meshbridge.rf: RX_LOG_DATA raw payload: {'raw_hex': '30bf2100f8db0181d562b28d3f573daad5e9a37740e5615d', 'recv_time': 1776352556, 'snr': 12.0, 'rssi': -65, 'payload': '2100f8db0181d562b28d3f573daad5e9a37740e5615d', 'payload_length': 22, 'header': 33, 'route_type': 1, 'route_typename': 'FLOOD', 'payload_type': 8, 'payload_typename': 'PATH', 'payload_ver': 0, 'path_len': 0, 'path_hash_size': 1, 'path': '', 'pkt_payload': b'\xf8\xdb\x01\x81\xd5b\xb2\x8d?W=\xaa\xd5\xe9\xa3w@\xe5a]', 'pkt_hash': 1087781962}
+2026-04-16 11:15:56,023 INFO meshbridge.rf: Stored pending RF sample snr=12.0 rssi=-65.0 reachability=direct hops=0
+2026-04-16 11:15:56,023 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=12.0 rssi=-65.0 path=[]
+2026-04-16 11:15:56,025 DEBUG meshbridge.rf: Built mesh message: sender='unknown' key=None key_prefix=None text='' event=PATH_RESPONSE
+2026-04-16 11:15:56,025 INFO meshbridge.rf: PATH_RESPONSE key=None key_prefix=None reachability=direct hops=0 snr=None rssi=None path=[]
+2026-04-16 11:15:56,025 INFO meshbridge.rf: Auto path discovery sent for key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 result=Event(type=<EventType.PATH_RESPONSE: 'path_response'>, payload={'pubkey_pre': 'dbf23a422d8c', 'out_path_len': 0, 'out_path_hash_len': 1, 'out_path': '', 'in_path_len': 0, 'in_path_hash_len': 1, 'in_path': ''}, attributes={'pubkey_pre': 'dbf23a422d8c'})

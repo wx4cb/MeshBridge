@@ -1,102 +1,52 @@
-# MeshBridge Runbook
+# Runbook
 
-## Install
-
+## Start
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+python3 main.py --config config.hjson
 ```
 
-## Validate config
-
+## Validate config only
 ```bash
 python3 main.py --config config.hjson --check-config
 ```
 
-## Run manually for testing
-
-```bash
-python3 main.py --config config.hjson --log-level DEBUG
+## Recommended logging
+### RF testing
+```hjson
+log_level: "DEBUG"
+log_mode: "RFONLY"
 ```
 
-## Run under systemd
-
-Update the included `systemd/meshbridge.service` file with the correct paths, then:
-
-```bash
-sudo cp systemd/meshbridge.service /etc/systemd/system/meshbridge.service
-sudo systemctl daemon-reload
-sudo systemctl enable meshbridge
-sudo systemctl start meshbridge
-sudo systemctl status meshbridge
+### Traffic testing
+```hjson
+log_level: "DEBUG"
+log_mode: "TRAFFICONLY"
 ```
 
-## Watch logs
+## Neighbor cache
+Stable keyed neighbors are persisted.
+Provisional name-only neighbors are not persisted.
 
-If running manually:
+## If `/neighbors probe` times out
+The command must defer before sending path discovery.
+The current bot implementation does that.
 
+## If a node shows provisional
+That means:
+- name seen
+- no confirmed key yet
+
+It should merge into a keyed record once advert/contact data arrives.
+
+## If RF stays `None`
+Check `RFONLY` logs for:
+- `RX_LOG_DATA`
+- `RAW_DATA`
+- `TRACE_DATA`
+- `Applied pending RF sample to CHANNEL_MSG_RECV`
+
+## Clean test reset
 ```bash
-tail -f meshbridge.log
+rm -f neighbors.json
+python3 main.py --config config.hjson
 ```
-
-If running under systemd:
-
-```bash
-journalctl -u meshbridge -f
-```
-
-## First startup checklist
-
-- Config validates successfully
-- Bot logs in successfully
-- Slash commands appear in the configured guild
-- MeshCore connection succeeds
-- Discord -> Mesh test message works
-- Mesh -> Discord webhook test message works
-- `/bridge version` returns status info
-- `/neighbors list` returns neighbor entries
-
-## Common issues
-
-### Config parsing error
-Cause:
-- wrong file path
-- old JSON parser still in use
-- HJSON comments present but `hjson` not installed
-
-Fix:
-- make sure `meshbridge/config.py` imports `hjson`
-- make sure `requirements.txt` includes `hjson`
-- rerun `pip install -r requirements.txt`
-
-### Slash commands missing
-Cause:
-- bot not invited with commands scope
-- wrong guild ID
-- sync delay
-
-Fix:
-- verify application ID and guild ID
-- restart the bot
-- verify command sync logs
-
-### Mesh -> Discord sender shows `unknown`
-Cause:
-- sender name not present in the payload
-- fallback parser not applied
-- wrong bridge file still being loaded
-
-Fix:
-- verify the current `meshbridge/bridge.py` is the active file
-- inspect debug log lines beginning with `Built mesh message:`
-- verify webhook sender receives the correct display name
-
-### Neighbor list shows no names
-Cause:
-- adverts often carry only keys
-- names may arrive later via chat or contact lookup
-
-Fix:
-- allow time for message traffic/contact lookup to upgrade records
-- inspect `Built mesh message:` debug lines

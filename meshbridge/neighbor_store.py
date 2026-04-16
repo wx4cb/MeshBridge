@@ -40,10 +40,13 @@ class NeighborStore:
         if msg.source != "mesh":
             return
 
+        # Only a true sender name counts as a real name.
+        candidate_name = (msg.sender.name or "").strip()
         canonical_id = canonical_neighbor_id(msg.sender.key, msg.sender.key_prefix)
-        candidate_name = (msg.sender.name or msg.sender.display or "").strip()
 
-        # Message-first path: no key yet, so create/update provisional name record.
+        # ------------------------------------------------------------------
+        # Message-first path: no key yet, but we do have a real sender name.
+        # ------------------------------------------------------------------
         if not canonical_id:
             provisional_id = provisional_neighbor_id(candidate_name)
             if not provisional_id:
@@ -59,6 +62,7 @@ class NeighborStore:
                     hop_count=msg.path.hop_count,
                     snr=msg.rf.snr,
                     rssi=msg.rf.rssi,
+                    rf_source=msg.metadata.get("rf_source") or msg.metadata.get("mesh_event_type"),
                     path=list(msg.path.raw_path),
                     source=msg.metadata.get("mesh_event_type", "unknown"),
                 )
@@ -69,8 +73,12 @@ class NeighborStore:
             self.save()
             return
 
+        # ------------------------------------------------------------------
         # Stable keyed record path.
+        # ------------------------------------------------------------------
         record = self._neighbors.get(canonical_id)
+        created_new_keyed_record = record is None
+
         if record is None:
             record = NeighborRecord(
                 key=msg.sender.key or canonical_id,
@@ -80,17 +88,42 @@ class NeighborStore:
                 hop_count=msg.path.hop_count,
                 snr=msg.rf.snr,
                 rssi=msg.rf.rssi,
+                rf_source=msg.metadata.get("rf_source") or msg.metadata.get("mesh_event_type"),
                 path=list(msg.path.raw_path),
                 source=msg.metadata.get("mesh_event_type", "unknown"),
             )
             self._neighbors[canonical_id] = record
 
-        # Merge any same-name provisional record into the keyed record.
+        # ------------------------------------------------------------------
+        # Preferred merge: if this keyed message also has a real name, merge
+        # the same-name provisional record immediately.
+        # ------------------------------------------------------------------
         provisional_id = provisional_neighbor_id(candidate_name)
         if provisional_id and provisional_id in self._neighbors and provisional_id != canonical_id:
             provisional = self._neighbors[provisional_id]
             self._merge_record_into_record(record, provisional)
             del self._neighbors[provisional_id]
+
+        # ------------------------------------------------------------------
+        # Missing merge path fix:
+        #
+        # If a keyed record is being created from an advert/path event that has
+        # no real name, try to absorb the most recent provisional direct record.
+        #
+        # This handles the common order:
+        #   1. message heard first  -> provisional record
+        #   2. advert heard later   -> keyed record
+        # ------------------------------------------------------------------
+        if created_new_keyed_record and not candidate_name:
+            merged = self._merge_recent_provisional_into_keyed_record(
+                target=record,
+                now_ts=msg.created_at,
+                max_age_seconds=180,
+            )
+            if merged:
+                # Keep the keyed record's event source as the current event if it
+                # already has one, but allow telemetry/name/path from provisional.
+                pass
 
         self._merge_record_from_message(record, msg, candidate_name)
 
@@ -100,7 +133,7 @@ class NeighborStore:
         self.save()
 
     def upgrade_name(self, full_key: str | None, key_prefix: str | None, name: str | None) -> None:
-        """Upgrade an existing neighbor with a newly learned name."""
+        """Upgrade an existing neighbor with a newly learned real name."""
         canonical_id = canonical_neighbor_id(full_key, key_prefix)
         if not canonical_id or not name:
             return
@@ -123,7 +156,6 @@ class NeighborStore:
             if full_key:
                 record.key = full_key
 
-        # Merge matching provisional entry if present.
         provisional_id = provisional_neighbor_id(cleaned)
         if provisional_id and provisional_id in self._neighbors and provisional_id != canonical_id:
             provisional = self._neighbors[provisional_id]
@@ -139,7 +171,9 @@ class NeighborStore:
         max_age_seconds: int = 120,
     ) -> bool:
         """Heuristically upgrade the most recent unnamed keyed neighbor."""
-        candidate_name = (msg.sender.name or msg.sender.display or "").strip()
+        del route_name
+
+        candidate_name = (msg.sender.name or "").strip()
         if not candidate_name or candidate_name.lower() == "unknown":
             return False
 
@@ -147,7 +181,6 @@ class NeighborStore:
 
         candidates: list[tuple[str, NeighborRecord]] = []
         for neighbor_id, record in self._neighbors.items():
-            # Skip provisional records here; they already carry a name.
             if neighbor_id.startswith("name:"):
                 continue
             if record.name:
@@ -168,6 +201,46 @@ class NeighborStore:
 
         self._merge_record_from_message(record, msg, candidate_name)
         self.save()
+        return True
+
+    def _merge_recent_provisional_into_keyed_record(
+        self,
+        target: NeighborRecord,
+        now_ts: int,
+        max_age_seconds: int = 180,
+    ) -> bool:
+        """Merge the most recent provisional record into a keyed record.
+
+        This is used when a keyed advert/path event arrives after a message-first
+        provisional record was already created, but the keyed event itself does
+        not carry a real name.
+
+        Returns:
+            True if a provisional record was merged.
+        """
+        candidates: list[tuple[str, NeighborRecord]] = []
+
+        for neighbor_id, record in self._neighbors.items():
+            if not neighbor_id.startswith("name:"):
+                continue
+            if record.last_seen <= 0:
+                continue
+            if now_ts - record.last_seen > max_age_seconds:
+                continue
+            if record.reachability not in (None, "direct"):
+                continue
+            candidates.append((neighbor_id, record))
+
+        if not candidates:
+            return False
+
+        # If there are multiple plausible provisional candidates, do not guess.
+        if len(candidates) > 1:
+            return False
+
+        provisional_id, provisional = candidates[0]
+        self._merge_record_into_record(target, provisional)
+        del self._neighbors[provisional_id]
         return True
 
     def _merge_record_from_message(
@@ -195,6 +268,9 @@ class NeighborStore:
         if msg.rf.rssi is not None:
             record.rssi = msg.rf.rssi
 
+        if msg.rf.snr is not None or msg.rf.rssi is not None:
+            record.rf_source = msg.metadata.get("rf_source") or msg.metadata.get("mesh_event_type")
+
         if msg.path.raw_path:
             record.path = list(msg.path.raw_path)
 
@@ -218,6 +294,9 @@ class NeighborStore:
         if source.rssi is not None and target.rssi is None:
             target.rssi = source.rssi
 
+        if source.rf_source and not target.rf_source:
+            target.rf_source = source.rf_source
+
         if source.path and not target.path:
             target.path = list(source.path)
 
@@ -225,7 +304,7 @@ class NeighborStore:
             target.source = source.source
 
     def list_recent(self) -> list[NeighborRecord]:
-        """Return neighbors sorted by most recently seen."""
+        """Return neighbors sorted by newest first."""
         return sorted(self._neighbors.values(), key=lambda item: item.last_seen, reverse=True)
 
     def get(self, key_prefix: str) -> NeighborRecord | None:
@@ -265,6 +344,7 @@ class NeighborStore:
                         "hop_count": item.hop_count,
                         "snr": item.snr,
                         "rssi": item.rssi,
+                        "rf_source": item.rf_source,
                         "path": item.path,
                     },
                 )
@@ -306,6 +386,7 @@ class NeighborStore:
                 hop_count=rf.get("hop_count"),
                 snr=rf.get("snr"),
                 rssi=rf.get("rssi"),
+                rf_source=rf.get("rf_source"),
                 path=list(rf.get("path", [])),
                 source="cache",
             )

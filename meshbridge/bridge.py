@@ -239,7 +239,6 @@ class MeshBridge:
 
             except asyncio.CancelledError:
                 raise
-
             except Exception as exc:
                 self.state.mesh_connected = False
                 system_log.exception("Mesh connection loop error: %s", exc)
@@ -372,7 +371,6 @@ class MeshBridge:
             return False
 
         sample = candidates[-1]
-
         msg.rf.snr = sample["snr"]
         msg.rf.rssi = sample["rssi"]
 
@@ -385,6 +383,7 @@ class MeshBridge:
         if not msg.path.raw_path and sample["path"]:
             msg.path.raw_path = list(sample["path"])
 
+        msg.metadata["rf_source"] = "pending_rf_correlation"
         return True
 
     async def _deliver_discord_to_mesh(self, msg: BridgeMessage) -> None:
@@ -445,21 +444,13 @@ class MeshBridge:
             if self.config.mesh_dm_user_id:
                 user = await self.bot.fetch_user(self.config.mesh_dm_user_id)
                 await user.send(text, allowed_mentions=self.bot.allowed_mentions_none())
-                traffic_log.info(
-                    "Mesh DM -> Discord user sender=%s text=%r",
-                    resolve_sender_display(msg),
-                    msg.text,
-                )
+                traffic_log.info("Mesh DM -> Discord user sender=%s text=%r", resolve_sender_display(msg), msg.text)
             elif self.config.mesh_dm_channel_id:
                 channel = self.bot.get_channel(self.config.mesh_dm_channel_id)
                 if channel is None:
                     channel = await self.bot.fetch_channel(self.config.mesh_dm_channel_id)
                 await channel.send(text, allowed_mentions=self.bot.allowed_mentions_none())
-                traffic_log.info(
-                    "Mesh DM -> Discord room sender=%s text=%r",
-                    resolve_sender_display(msg),
-                    msg.text,
-                )
+                traffic_log.info("Mesh DM -> Discord room sender=%s text=%r", resolve_sender_display(msg), msg.text)
             else:
                 msg.delivery_status = "failed"
                 msg.drop_reason = "no_dm_destination"
@@ -482,12 +473,7 @@ class MeshBridge:
         sender_name = resolve_sender_display(msg)
         content = msg.text.strip() if msg.text else sender_name
 
-        traffic_log.info(
-            "Mesh -> Discord route=%s sender=%s text=%r",
-            msg.route.route_name,
-            sender_name,
-            msg.text,
-        )
+        traffic_log.info("Mesh -> Discord route=%s sender=%s text=%r", msg.route.route_name, sender_name, msg.text)
 
         await self.webhooks.send(
             webhook_url=msg.route.webhook_url,
@@ -696,6 +682,9 @@ class MeshBridge:
 
         msg.rf.snr = float(snr) if snr is not None else None
         msg.rf.rssi = float(rssi) if rssi is not None else None
+
+        if msg.rf.snr is not None or msg.rf.rssi is not None:
+            msg.metadata["rf_source"] = event_name
 
         if msg.path.direct:
             msg.rf.reachability = "direct"

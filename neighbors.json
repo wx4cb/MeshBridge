@@ -1,1 +1,54 @@
-[]
+[
+  {
+    "name": "Deltona Digi",
+    "key": "dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451",
+    "last_seen": 1776352555,
+    "rf": {
+      "reachability": "direct",
+      "hop_count": 0,
+      "snr": 11.5,
+      "rssi": -66.0,
+      "rf_source": "ADVERTISEMENT",
+      "path": []
+    }
+  },
+  {
+    "name": "WX4CB RAV4",
+    "key": "8e86211820cce3eb2ace9ef8418959c93f6bdc208cca2f64cef1663f7268680f",
+    "last_seen": 1776347773,
+    "rf": {
+      "reachability": "direct",
+      "hop_count": 0,
+      "snr": 11.25,
+      "rssi": -76.0,
+      "rf_source": "ADVERTISEMENT",
+      "path": []
+    }
+  },
+  {
+    "name": null,
+    "key": "7456fdd17c354cded61d5141538a1fb734e15b259fd2917b9fdbdf882347494b",
+    "last_seen": 1776338426,
+    "rf": {
+      "reachability": "direct",
+      "hop_count": 0,
+      "snr": null,
+      "rssi": null,
+      "rf_source": "ADVERTISEMENT",
+      "path": []
+    }
+  },
+  {
+    "name": "Deltona Digi",
+    "key": "fa30eacdcb67ae90e606587f8c2f797982a70e96b3ad72e4cecbf41e0f764808",
+    "last_seen": 1776305852,
+    "rf": {
+      "reachability": "direct",
+      "hop_count": 0,
+      "snr": 11.5,
+      "rssi": -64.0,
+      "rf_source": "ADVERTISEMENT",
+      "path": []
+    }
+  }
+]
