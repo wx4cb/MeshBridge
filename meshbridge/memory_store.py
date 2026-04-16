@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import deque
+from itertools import islice
 
 
 class UnhandledEventStore:
@@ -15,6 +16,13 @@ class UnhandledEventStore:
         """Store one unhandled event preview."""
         self._events.append((when, event_type, preview))
 
-    def recent(self) -> list[tuple[int, str, str]]:
+    def __len__(self) -> int:
+        """Return the number of buffered events."""
+        return len(self._events)
+
+    def recent(self, limit: int | None = None) -> list[tuple[int, str, str]]:
         """Return recent events newest-first."""
-        return list(reversed(self._events))
+        items = reversed(self._events)
+        if limit is None:
+            return list(items)
+        return list(islice(items, limit))

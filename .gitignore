@@ -6,4 +6,6 @@ node_modules/
 *.bak
 *.save
 meshbridge/__pycache__/
-
+.vscode
+.codex
+__pycache__

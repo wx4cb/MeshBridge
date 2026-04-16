@@ -76,6 +76,31 @@ class MeshAdapter:
         finally:
             self._client = None
 
+    def create_disconnect_waiters(self) -> list[Awaitable[Any]]:
+        """Return awaitables that resolve when the client disconnects."""
+        if self._client is None:
+            return []
+
+        waiters: list[Awaitable[Any]] = []
+
+        for attr_name in ("wait_closed", "wait_disconnected", "wait_for_disconnect"):
+            fn = getattr(self._client, attr_name, None)
+            if not callable(fn):
+                continue
+            try:
+                waiter = fn()
+            except TypeError:
+                continue
+            if asyncio.isfuture(waiter) or asyncio.iscoroutine(waiter):
+                waiters.append(waiter)
+
+        for attr_name in ("disconnected_event", "disconnect_event", "closed_event"):
+            event = getattr(self._client, attr_name, None)
+            if isinstance(event, asyncio.Event):
+                waiters.append(event.wait())
+
+        return waiters
+
     def set_callback(self, callback: MeshEventCallback) -> None:
         """Set the bridge event callback."""
         self._callback = callback

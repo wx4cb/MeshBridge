@@ -34,6 +34,45 @@ class NeighborStore:
         self.cache_path = Path(cache_file)
         self.cache_limit = cache_limit
         self._neighbors: dict[str, NeighborRecord] = {}
+        self._dirty = False
+        self._provisional_ids: set[str] = set()
+        self._unnamed_keyed_ids: set[str] = set()
+        self._sorted_cache: list[NeighborRecord] | None = None
+
+    def is_dirty(self) -> bool:
+        """Return True when neighbor state has changed since the last save."""
+        return self._dirty
+
+    def _mark_dirty(self) -> None:
+        """Mark in-memory state as needing persistence."""
+        self._dirty = True
+        self._sorted_cache = None
+
+    def _reindex_record(self, neighbor_id: str, record: NeighborRecord) -> None:
+        """Refresh helper indexes for one record."""
+        if neighbor_id.startswith("name:"):
+            self._provisional_ids.add(neighbor_id)
+            self._unnamed_keyed_ids.discard(neighbor_id)
+            return
+
+        self._provisional_ids.discard(neighbor_id)
+
+        if record.name or record.last_seen <= 0 or record.reachability not in (None, "direct"):
+            self._unnamed_keyed_ids.discard(neighbor_id)
+            return
+
+        self._unnamed_keyed_ids.add(neighbor_id)
+
+    def _set_record(self, neighbor_id: str, record: NeighborRecord) -> None:
+        """Insert or replace a neighbor record and refresh indexes."""
+        self._neighbors[neighbor_id] = record
+        self._reindex_record(neighbor_id, record)
+
+    def _remove_record(self, neighbor_id: str) -> None:
+        """Remove a neighbor record from storage and indexes."""
+        self._neighbors.pop(neighbor_id, None)
+        self._provisional_ids.discard(neighbor_id)
+        self._unnamed_keyed_ids.discard(neighbor_id)
 
     def update_from_message(self, msg: BridgeMessage) -> None:
         """Update neighbor state from a message object."""
@@ -66,11 +105,12 @@ class NeighborStore:
                     path=list(msg.path.raw_path),
                     source=msg.metadata.get("mesh_event_type", "unknown"),
                 )
-                self._neighbors[provisional_id] = record
+                self._set_record(provisional_id, record)
             else:
                 self._merge_record_from_message(record, msg, candidate_name)
+                self._reindex_record(provisional_id, record)
 
-            self.save()
+            self._mark_dirty()
             return
 
         # ------------------------------------------------------------------
@@ -92,7 +132,7 @@ class NeighborStore:
                 path=list(msg.path.raw_path),
                 source=msg.metadata.get("mesh_event_type", "unknown"),
             )
-            self._neighbors[canonical_id] = record
+            self._set_record(canonical_id, record)
 
         # ------------------------------------------------------------------
         # Preferred merge: if this keyed message also has a real name, merge
@@ -102,7 +142,7 @@ class NeighborStore:
         if provisional_id and provisional_id in self._neighbors and provisional_id != canonical_id:
             provisional = self._neighbors[provisional_id]
             self._merge_record_into_record(record, provisional)
-            del self._neighbors[provisional_id]
+            self._remove_record(provisional_id)
 
         # ------------------------------------------------------------------
         # Missing merge path fix:
@@ -126,11 +166,12 @@ class NeighborStore:
                 pass
 
         self._merge_record_from_message(record, msg, candidate_name)
+        self._reindex_record(canonical_id, record)
 
         if msg.sender.key:
             record.key = msg.sender.key
 
-        self.save()
+        self._mark_dirty()
 
     def upgrade_name(self, full_key: str | None, key_prefix: str | None, name: str | None) -> None:
         """Upgrade an existing neighbor with a newly learned real name."""
@@ -144,25 +185,30 @@ class NeighborStore:
 
         record = self._neighbors.get(canonical_id)
         if record is None:
-            self._neighbors[canonical_id] = NeighborRecord(
+            self._set_record(
+                canonical_id,
+                NeighborRecord(
                 key=full_key or canonical_id,
                 name=cleaned,
                 last_seen=0,
                 reachability=None,
+                ),
             )
             record = self._neighbors[canonical_id]
         else:
             record.name = cleaned
             if full_key:
                 record.key = full_key
+            self._reindex_record(canonical_id, record)
 
         provisional_id = provisional_neighbor_id(cleaned)
         if provisional_id and provisional_id in self._neighbors and provisional_id != canonical_id:
             provisional = self._neighbors[provisional_id]
             self._merge_record_into_record(record, provisional)
-            del self._neighbors[provisional_id]
+            self._remove_record(provisional_id)
+            self._reindex_record(canonical_id, record)
 
-        self.save()
+        self._mark_dirty()
 
     def upgrade_recent_unnamed_neighbor(
         self,
@@ -179,28 +225,24 @@ class NeighborStore:
 
         now_ts = msg.created_at
 
-        candidates: list[tuple[str, NeighborRecord]] = []
-        for neighbor_id, record in self._neighbors.items():
-            if neighbor_id.startswith("name:"):
-                continue
-            if record.name:
-                continue
-            if record.last_seen <= 0:
+        best_id: str | None = None
+        best_record: NeighborRecord | None = None
+        for neighbor_id in self._unnamed_keyed_ids:
+            record = self._neighbors.get(neighbor_id)
+            if record is None:
                 continue
             if now_ts - record.last_seen > max_age_seconds:
                 continue
-            if record.reachability not in (None, "direct"):
-                continue
-            candidates.append((neighbor_id, record))
+            if best_record is None or record.last_seen > best_record.last_seen:
+                best_id = neighbor_id
+                best_record = record
 
-        if not candidates:
+        if best_id is None or best_record is None:
             return False
 
-        candidates.sort(key=lambda item: item[1].last_seen, reverse=True)
-        _, record = candidates[0]
-
-        self._merge_record_from_message(record, msg, candidate_name)
-        self.save()
+        self._merge_record_from_message(best_record, msg, candidate_name)
+        self._reindex_record(best_id, best_record)
+        self._mark_dirty()
         return True
 
     def _merge_recent_provisional_into_keyed_record(
@@ -220,8 +262,9 @@ class NeighborStore:
         """
         candidates: list[tuple[str, NeighborRecord]] = []
 
-        for neighbor_id, record in self._neighbors.items():
-            if not neighbor_id.startswith("name:"):
+        for neighbor_id in self._provisional_ids:
+            record = self._neighbors.get(neighbor_id)
+            if record is None:
                 continue
             if record.last_seen <= 0:
                 continue
@@ -240,7 +283,7 @@ class NeighborStore:
 
         provisional_id, provisional = candidates[0]
         self._merge_record_into_record(target, provisional)
-        del self._neighbors[provisional_id]
+        self._remove_record(provisional_id)
         return True
 
     def _merge_record_from_message(
@@ -303,9 +346,17 @@ class NeighborStore:
         if source.source and (not target.source or target.source == "unknown"):
             target.source = source.source
 
-    def list_recent(self) -> list[NeighborRecord]:
+    def list_recent(self, limit: int | None = None) -> list[NeighborRecord]:
         """Return neighbors sorted by newest first."""
-        return sorted(self._neighbors.values(), key=lambda item: item.last_seen, reverse=True)
+        if self._sorted_cache is None:
+            self._sorted_cache = sorted(
+                self._neighbors.values(),
+                key=lambda item: item.last_seen,
+                reverse=True,
+            )
+        if limit is None:
+            return list(self._sorted_cache)
+        return list(self._sorted_cache[:limit])
 
     def get(self, key_prefix: str) -> NeighborRecord | None:
         """Return a neighbor by canonical key prefix, full key prefix, or name."""
@@ -322,11 +373,14 @@ class NeighborStore:
                 return value
         return None
 
-    def save(self) -> None:
+    def save(self, force: bool = False) -> None:
         """Persist a compact cache of the top stable neighbors.
 
         Provisional name-only records are intentionally not persisted.
         """
+        if not force and not self._dirty:
+            return
+
         stable_neighbors = [
             item for item in self.list_recent()
             if not item.key.startswith("name:")
@@ -356,6 +410,7 @@ class NeighborStore:
         tmp_path = self.cache_path.with_suffix(self.cache_path.suffix + ".tmp")
         tmp_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         tmp_path.replace(self.cache_path)
+        self._dirty = False
 
     def load(self) -> None:
         """Load neighbor cache if present."""
@@ -378,15 +433,19 @@ class NeighborStore:
                 continue
 
             rf = dict(entry.get("rf", {}))
-            self._neighbors[canonical_id] = NeighborRecord(
-                key=full_key,
-                name=entry.get("name"),
-                last_seen=int(entry.get("last_seen", 0)),
-                reachability=rf.get("reachability"),
-                hop_count=rf.get("hop_count"),
-                snr=rf.get("snr"),
-                rssi=rf.get("rssi"),
-                rf_source=rf.get("rf_source"),
-                path=list(rf.get("path", [])),
-                source="cache",
+            self._set_record(
+                canonical_id,
+                NeighborRecord(
+                    key=full_key,
+                    name=entry.get("name"),
+                    last_seen=int(entry.get("last_seen", 0)),
+                    reachability=rf.get("reachability"),
+                    hop_count=rf.get("hop_count"),
+                    snr=rf.get("snr"),
+                    rssi=rf.get("rssi"),
+                    rf_source=rf.get("rf_source"),
+                    path=list(rf.get("path", [])),
+                    source="cache",
+                ),
             )
+        self._dirty = False

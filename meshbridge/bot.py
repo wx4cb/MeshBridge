@@ -166,7 +166,7 @@ class MeshBridgeBot(commands.Bot):
             if not is_admin_user(interaction):
                 await interaction.response.send_message("You do not have permission.", ephemeral=True)
                 return
-            rows = self.bridge.unhandled_events.recent()[:10]
+            rows = self.bridge.unhandled_events.recent(limit=10)
             if not rows:
                 await interaction.response.send_message("No unhandled events seen.", ephemeral=True)
                 return
@@ -204,7 +204,7 @@ class MeshBridgeBot(commands.Bot):
 
         @group.command(name="list", description="List recent neighbors")
         async def list_cmd(interaction: discord.Interaction) -> None:
-            rows = self.bridge.neighbors.list_recent()[:10]
+            rows = self.bridge.neighbors.list_recent(limit=10)
             if not rows:
                 await interaction.response.send_message("No neighbors known yet.", ephemeral=True)
                 return
@@ -284,13 +284,13 @@ class MeshBridgeBot(commands.Bot):
 
         @group.command(name="list", description="List all currently known nodes")
         async def list_cmd(interaction: discord.Interaction) -> None:
-            rows = self.bridge.neighbors.list_recent()
+            rows = self.bridge.neighbors.list_recent(limit=25)
             if not rows:
                 await interaction.response.send_message("No known nodes yet.", ephemeral=True)
                 return
 
             lines: list[str] = []
-            for row in rows[:25]:
+            for row in rows:
                 label = format_neighbor_label(row.name, row.key)
                 lines.append(
                     f"{label} | key={row.key} | reachability={row.reachability} | "

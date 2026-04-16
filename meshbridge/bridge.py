@@ -192,8 +192,11 @@ class MeshBridge:
         self.mesh_to_discord_queue: asyncio.Queue[BridgeMessage] = asyncio.Queue()
         self._worker_tasks: list[asyncio.Task[Any]] = []
         self._mesh_task: asyncio.Task[Any] | None = None
+        self._stop_event = asyncio.Event()
         self._last_auto_probe: dict[str, int] = {}
         self._pending_rf_samples: list[dict[str, Any]] = []
+        self._dm_user = None
+        self._dm_channel = None
 
     def attach_bot(self, bot: Any) -> None:
         """Attach the Discord bot instance."""
@@ -201,6 +204,7 @@ class MeshBridge:
 
     async def start(self) -> None:
         """Start bridge background tasks."""
+        self._stop_event.clear()
         await self.webhooks.start()
         self._worker_tasks = [
             asyncio.create_task(self.discord_to_mesh_worker(), name="discord_to_mesh_worker"),
@@ -211,6 +215,7 @@ class MeshBridge:
 
     async def stop(self) -> None:
         """Stop bridge background tasks."""
+        self._stop_event.set()
         if self._mesh_task is not None:
             self._mesh_task.cancel()
 
@@ -218,14 +223,14 @@ class MeshBridge:
             task.cancel()
 
         await self.mesh.disconnect()
-        self.neighbors.save()
+        self.neighbors.save(force=True)
         await self.webhooks.close()
 
     async def mesh_connection_loop(self) -> None:
         """Reconnect to MeshCore as needed."""
         delay = self.config.reconnect_initial_delay_seconds
 
-        while True:
+        while not self._stop_event.is_set():
             try:
                 await self.mesh.connect()
                 self.state.mesh_connected = True
@@ -234,8 +239,7 @@ class MeshBridge:
 
                 delay = self.config.reconnect_initial_delay_seconds
 
-                while self.state.mesh_connected:
-                    await asyncio.sleep(1)
+                await self._wait_for_mesh_disconnect()
 
             except asyncio.CancelledError:
                 raise
@@ -243,8 +247,32 @@ class MeshBridge:
                 self.state.mesh_connected = False
                 system_log.exception("Mesh connection loop error: %s", exc)
 
+            if self._stop_event.is_set():
+                break
+
             await asyncio.sleep(delay)
             delay = min(delay * 2, self.config.reconnect_max_delay_seconds)
+
+    async def _wait_for_mesh_disconnect(self) -> None:
+        """Wait until the mesh client disconnects or the bridge stops."""
+        waiters = [
+            asyncio.create_task(self._stop_event.wait(), name="mesh_stop_waiter"),
+        ]
+
+        for index, waiter in enumerate(self.mesh.create_disconnect_waiters()):
+            waiters.append(asyncio.create_task(waiter, name=f"mesh_disconnect_waiter_{index}"))
+
+        try:
+            if len(waiters) == 1:
+                while not self._stop_event.is_set():
+                    await asyncio.sleep(5)
+            else:
+                await asyncio.wait(waiters, return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            for waiter in waiters:
+                waiter.cancel()
+
+        self.state.mesh_connected = False
 
     def build_version_text(self) -> str:
         """Build the version/status response body."""
@@ -285,7 +313,7 @@ class MeshBridge:
                 f"Process RSS: {mem.rss / 1024 / 1024:.1f} MB",
                 f"System Free Memory: {vm.available / 1024 / 1024:.1f} MB",
                 f"Load Average: {load}",
-                f"Recent Messages Buffered: {len(self.history.recent())}",
+                f"Recent Messages Buffered: {len(self.history)}",
                 f"Reconnect Count: {self.state.reconnect_count}",
             ]
         )
@@ -315,7 +343,6 @@ class MeshBridge:
             try:
                 await self._deliver_mesh_to_discord(msg)
             finally:
-                self.neighbors.update_from_message(msg)
                 self.mesh_to_discord_queue.task_done()
 
     async def persistence_worker(self) -> None:
@@ -442,13 +469,11 @@ class MeshBridge:
             )
 
             if self.config.mesh_dm_user_id:
-                user = await self.bot.fetch_user(self.config.mesh_dm_user_id)
+                user = await self._get_mesh_dm_user()
                 await user.send(text, allowed_mentions=self.bot.allowed_mentions_none())
                 traffic_log.info("Mesh DM -> Discord user sender=%s text=%r", resolve_sender_display(msg), msg.text)
             elif self.config.mesh_dm_channel_id:
-                channel = self.bot.get_channel(self.config.mesh_dm_channel_id)
-                if channel is None:
-                    channel = await self.bot.fetch_channel(self.config.mesh_dm_channel_id)
+                channel = await self._get_mesh_dm_channel()
                 await channel.send(text, allowed_mentions=self.bot.allowed_mentions_none())
                 traffic_log.info("Mesh DM -> Discord room sender=%s text=%r", resolve_sender_display(msg), msg.text)
             else:
@@ -481,6 +506,27 @@ class MeshBridge:
             content=content,
         )
         msg.delivery_status = "sent"
+
+    async def _get_mesh_dm_user(self) -> Any:
+        """Return the cached Discord user for mesh DM delivery."""
+        if self.bot is None or self.config.mesh_dm_user_id is None:
+            raise RuntimeError("Mesh DM user destination is not configured")
+
+        if self._dm_user is None or getattr(self._dm_user, "id", None) != self.config.mesh_dm_user_id:
+            self._dm_user = await self.bot.fetch_user(self.config.mesh_dm_user_id)
+        return self._dm_user
+
+    async def _get_mesh_dm_channel(self) -> Any:
+        """Return the cached Discord channel for mesh DM delivery."""
+        if self.bot is None or self.config.mesh_dm_channel_id is None:
+            raise RuntimeError("Mesh DM channel destination is not configured")
+
+        if self._dm_channel is None or getattr(self._dm_channel, "id", None) != self.config.mesh_dm_channel_id:
+            channel = self.bot.get_channel(self.config.mesh_dm_channel_id)
+            if channel is None:
+                channel = await self.bot.fetch_channel(self.config.mesh_dm_channel_id)
+            self._dm_channel = channel
+        return self._dm_channel
 
     async def _try_enrich_neighbor_from_contact_lookup(self, msg: BridgeMessage) -> None:
         """Try to upgrade a neighbor name after adverts using contact lookup."""
