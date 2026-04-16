@@ -86,6 +86,18 @@ For flooded or direct packets, `path=[...]` and `hops=...` may also appear even 
 
 If you see `rf_source=pending_rf_correlation` in future tooling or debug output, that means the message itself did not carry RF metadata and the bridge filled it from a nearby anonymous RF event using timestamp correlation.
 
+Example:
+
+```text
+2026-04-16 18:53:11,081 INFO meshbridge.rf: RX_LOG_DATA key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 key_prefix=dbf23a42 reachability=direct hops=0 snr=11.5 rssi=-69.0 path=[] control=DISCOVER_RESP node_type=repeater tag=1700061148 discover_snr=4.25
+2026-04-16 18:54:03,634 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=multi_hop hops=1 snr=11.5 rssi=-66.0 path=['dbf2']
+```
+
+In this example:
+
+- the first line is a decoded MeshCore control packet, specifically a `DISCOVER_RESP`
+- the second line is a normal routed packet with recovered hop/path metadata, but no decoded control subtype
+
 ## If reconnects keep happening
 Check:
 
