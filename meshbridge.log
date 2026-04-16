@@ -928,3 +928,32 @@ discord.app_commands.errors.CommandInvokeError: Command 'probe' raised an except
 2026-04-16 13:04:53,762 DEBUG meshbridge.rf: RX_LOG_DATA raw payload: {'raw_hex': '30be1501db8933ebef95bcc997f44210d1045b4e074bb9e1a32f2d1d1b198816f6f2db134e38adc8', 'recv_time': 1776359093, 'snr': 12.0, 'rssi': -66, 'payload': '1501db8933ebef95bcc997f44210d1045b4e074bb9e1a32f2d1d1b198816f6f2db134e38adc8', 'payload_length': 38, 'header': 21, 'route_type': 1, 'route_typename': 'FLOOD', 'payload_type': 5, 'payload_typename': 'GRP_TXT', 'payload_ver': 0, 'path_len': 1, 'path_hash_size': 1, 'path': 'db', 'pkt_payload': b'\x893\xeb\xef\x95\xbc\xc9\x97\xf4B\x10\xd1\x04[N\x07K\xb9\xe1\xa3/-\x1d\x1b\x19\x88\x16\xf6\xf2\xdb\x13N8\xad\xc8', 'pkt_hash': 371860522, 'chan_hash': '89', 'cipher_mac': '33eb', 'crypted': 'ef95bcc997f44210d1045b4e074bb9e1a32f2d1d1b198816f6f2db134e38adc8'}
 2026-04-16 13:04:53,762 INFO meshbridge.rf: Stored pending RF sample snr=12.0 rssi=-66.0 reachability=unknown hops=None
 2026-04-16 13:04:53,763 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=12.0 rssi=-66.0 path=[]
+2026-04-16 13:09:49,221 WARNING discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-04-16 13:09:49,221 WARNING discord.client: davey is not installed, voice will NOT be supported
+2026-04-16 13:09:50,569 INFO meshcore: Serial Connection started
+2026-04-16 13:09:50,571 INFO meshbridge.system: Connected to MeshCore
+2026-04-16 13:10:19,743 WARNING discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-04-16 13:10:19,743 WARNING discord.client: davey is not installed, voice will NOT be supported
+2026-04-16 13:10:20,512 INFO meshcore: Serial Connection started
+2026-04-16 13:10:20,514 INFO meshbridge.system: Connected to MeshCore
+2026-04-16 13:10:34,711 ERROR asyncio: Unclosed client session
+client_session: <aiohttp.client.ClientSession object at 0x7f84816527b0>
+2026-04-16 13:10:34,711 ERROR asyncio: Unclosed connector
+connections: ['deque([(<aiohttp.client_proto.ResponseHandler object at 0x7f848197ebd0>, 12161.807591962)])']
+connector: <aiohttp.connector.TCPConnector object at 0x7f8481650c20>
+2026-04-16 13:12:06,770 WARNING discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-04-16 13:12:06,770 WARNING discord.client: davey is not installed, voice will NOT be supported
+2026-04-16 13:12:07,175 INFO meshcore: Serial Connection started
+2026-04-16 13:12:07,177 INFO meshbridge.system: Connected to MeshCore
+2026-04-16 13:18:41,782 WARNING discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-04-16 13:18:41,782 WARNING discord.client: davey is not installed, voice will NOT be supported
+2026-04-16 13:18:42,223 INFO meshcore: Serial Connection started
+2026-04-16 13:18:42,225 INFO meshbridge.system: Connected to MeshCore
+2026-04-16 13:19:17,962 DEBUG meshbridge.rf: Built mesh message: sender='unknown' key=None key_prefix=None text='' event=RX_LOG_DATA
+2026-04-16 13:19:17,962 DEBUG meshbridge.rf: RX_LOG_DATA raw payload: {'raw_hex': '2fda150081b42673edf6ee0e9db0fca51c1b80c42a9bbcb53bc8dd71fff9e581c7d78b7763ded9', 'recv_time': 1776359957, 'snr': 11.75, 'rssi': -38, 'payload': '150081b42673edf6ee0e9db0fca51c1b80c42a9bbcb53bc8dd71fff9e581c7d78b7763ded9', 'payload_length': 37, 'header': 21, 'route_type': 1, 'route_typename': 'FLOOD', 'payload_type': 5, 'payload_typename': 'GRP_TXT', 'payload_ver': 0, 'path_len': 0, 'path_hash_size': 1, 'path': '', 'pkt_payload': b'\x81\xb4&s\xed\xf6\xee\x0e\x9d\xb0\xfc\xa5\x1c\x1b\x80\xc4*\x9b\xbc\xb5;\xc8\xddq\xff\xf9\xe5\x81\xc7\xd7\x8bwc\xde\xd9', 'pkt_hash': 3044814353, 'chan_hash': '81', 'cipher_mac': 'b426', 'crypted': '73edf6ee0e9db0fca51c1b80c42a9bbcb53bc8dd71fff9e581c7d78b7763ded9'}
+2026-04-16 13:19:17,963 INFO meshbridge.rf: Stored pending RF sample snr=11.75 rssi=-38.0 reachability=direct hops=0
+2026-04-16 13:19:17,963 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=direct hops=0 snr=11.75 rssi=-38.0 path=[]
+2026-04-16 13:19:18,518 DEBUG meshbridge.rf: Built mesh message: sender='unknown' key=None key_prefix=None text='' event=RX_LOG_DATA
+2026-04-16 13:19:18,518 DEBUG meshbridge.rf: RX_LOG_DATA raw payload: {'raw_hex': '2db81501db81b42673edf6ee0e9db0fca51c1b80c42a9bbcb53bc8dd71fff9e581c7d78b7763ded9', 'recv_time': 1776359958, 'snr': 11.25, 'rssi': -72, 'payload': '1501db81b42673edf6ee0e9db0fca51c1b80c42a9bbcb53bc8dd71fff9e581c7d78b7763ded9', 'payload_length': 38, 'header': 21, 'route_type': 1, 'route_typename': 'FLOOD', 'payload_type': 5, 'payload_typename': 'GRP_TXT', 'payload_ver': 0, 'path_len': 1, 'path_hash_size': 1, 'path': 'db', 'pkt_payload': b'\x81\xb4&s\xed\xf6\xee\x0e\x9d\xb0\xfc\xa5\x1c\x1b\x80\xc4*\x9b\xbc\xb5;\xc8\xddq\xff\xf9\xe5\x81\xc7\xd7\x8bwc\xde\xd9', 'pkt_hash': 3044814353, 'chan_hash': '81', 'cipher_mac': 'b426', 'crypted': '73edf6ee0e9db0fca51c1b80c42a9bbcb53bc8dd71fff9e581c7d78b7763ded9'}
+2026-04-16 13:19:18,518 INFO meshbridge.rf: Stored pending RF sample snr=11.25 rssi=-72.0 reachability=unknown hops=None
+2026-04-16 13:19:18,518 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=unknown hops=None snr=11.25 rssi=-72.0 path=[]

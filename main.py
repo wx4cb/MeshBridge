@@ -82,7 +82,12 @@ async def async_main() -> int:
     bot = MeshBridgeBot(config=config, bridge=bridge)
     bridge.attach_bot(bot)
 
-    await bot.start(config.discord_token)
+    try:
+        await bot.start(config.discord_token)
+    finally:
+        if not bot.is_closed():
+            await bot.close()
+
     return 0
 
 
