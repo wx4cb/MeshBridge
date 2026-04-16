@@ -311,6 +311,8 @@ class MeshBridge:
         self._stop_event = asyncio.Event()
         self._last_auto_probe: dict[str, int] = {}
         self._pending_rf_samples: list[dict[str, Any]] = []
+        self._recent_pkt_hashes: dict[int, dict[str, Any]] = {}
+        self._recent_packet_history: dict[int, dict[str, Any]] = {}
         self._dm_user = None
         self._dm_channel = None
 
@@ -542,6 +544,162 @@ class MeshBridge:
         msg.metadata["rf_source"] = "pending_rf_correlation"
         return True
 
+    def _annotate_recent_packet_reuse(self, msg: BridgeMessage) -> None:
+        """Annotate repeated low-level packet observations using pkt_hash."""
+        pkt_hash = _coerce_int(msg.rf.raw.get("pkt_hash"))
+        if pkt_hash is None:
+            return
+
+        now_ts = msg.created_at
+        previous = self._recent_pkt_hashes.get(pkt_hash)
+        if previous is not None:
+            msg.metadata["same_pkt_as_recent"] = True
+            msg.metadata["pkt_hash"] = pkt_hash
+            msg.metadata["previous_pkt_seen_at"] = previous["ts"]
+
+            previous_path = previous.get("path") or []
+            current_path = list(msg.path.raw_path)
+
+            # When the same packet reappears with a longer path, that's usually a
+            # flood retransmission from the repeater that appended its hash.
+            # This is a heuristic, not a protocol guarantee, but it is very useful
+            # for understanding "I heard the original" versus "I heard the repeater
+            # rebroadcast of that same packet" in RF logs.
+            if len(current_path) > len(previous_path):
+                msg.metadata["likely_retransmit"] = True
+                if current_path:
+                    msg.metadata["likely_retransmit_via"] = current_path[-1]
+
+        # Keep only a short recent view of packet hashes. We only need enough
+        # history to compare immediate re-hears and repeater rebroadcasts.
+        self._recent_pkt_hashes[pkt_hash] = {
+            "ts": now_ts,
+            "path": list(msg.path.raw_path),
+        }
+
+        # Keep a richer sighting history as well so operators can inspect the
+        # observed propagation path of a packet instead of inferring it by hand
+        # from a stream of RF log lines.
+        history = self._recent_packet_history.get(pkt_hash)
+        sighting = {
+            "ts": now_ts,
+            "path": list(msg.path.raw_path),
+            "reachability": msg.rf.reachability,
+            "snr": msg.rf.snr,
+            "rssi": msg.rf.rssi,
+            "key_prefix": msg.sender.key_prefix,
+            "control_subtype_name": msg.metadata.get("control_subtype_name"),
+        }
+        if history is None:
+            history = {
+                "first_seen": now_ts,
+                "last_seen": now_ts,
+                "pkt_hash": pkt_hash,
+                "sightings": [sighting],
+            }
+            self._recent_packet_history[pkt_hash] = history
+        else:
+            history["last_seen"] = now_ts
+            history["sightings"].append(sighting)
+            history["sightings"] = history["sightings"][-8:]
+
+        cutoff = now_ts - 60
+        self._recent_pkt_hashes = {
+            hash_value: info
+            for hash_value, info in self._recent_pkt_hashes.items()
+            if info["ts"] >= cutoff
+        }
+
+        history_cutoff = now_ts - 300
+        self._recent_packet_history = {
+            hash_value: info
+            for hash_value, info in self._recent_packet_history.items()
+            if info["last_seen"] >= history_cutoff
+        }
+
+    @staticmethod
+    def _format_path_summary(sightings: list[dict[str, Any]]) -> str:
+        """Format a concise observed propagation summary from packet sightings."""
+        path_chain: list[str] = []
+        saw_direct = False
+
+        for sighting in sightings:
+            path = sighting.get("path") or []
+            if not path:
+                saw_direct = True
+                continue
+            for hop in path:
+                hop_text = str(hop)
+                if hop_text not in path_chain:
+                    path_chain.append(hop_text)
+
+        if saw_direct and path_chain:
+            return "origin -> " + " -> ".join(path_chain)
+        if saw_direct:
+            return "origin"
+        if path_chain:
+            return " -> ".join(path_chain)
+        return "unknown"
+
+    @staticmethod
+    def _parse_pkt_hash(value: str) -> int | None:
+        """Parse a packet hash from decimal or hex text."""
+        text = str(value).strip().lower()
+        if not text:
+            return None
+        try:
+            return int(text, 16 if text.startswith("0x") else 10)
+        except ValueError:
+            return None
+
+    def list_recent_packet_paths(self, limit: int = 10) -> list[dict[str, Any]]:
+        """Return recent packet path summaries newest first."""
+        rows = sorted(
+            self._recent_packet_history.values(),
+            key=lambda item: item["last_seen"],
+            reverse=True,
+        )
+        summaries: list[dict[str, Any]] = []
+
+        for row in rows[:limit]:
+            sightings = list(row["sightings"])
+            latest = sightings[-1]
+            summaries.append(
+                {
+                    "pkt_hash": row["pkt_hash"],
+                    "first_seen": row["first_seen"],
+                    "last_seen": row["last_seen"],
+                    "count": len(sightings),
+                    "path_summary": self._format_path_summary(sightings),
+                    "latest_snr": latest.get("snr"),
+                    "latest_rssi": latest.get("rssi"),
+                    "latest_reachability": latest.get("reachability"),
+                    "control_subtype_name": latest.get("control_subtype_name"),
+                }
+            )
+
+        return summaries
+
+    def get_packet_path_details(self, pkt_hash_text: str) -> dict[str, Any] | None:
+        """Return one packet's observed propagation details."""
+        pkt_hash = self._parse_pkt_hash(pkt_hash_text)
+        if pkt_hash is None:
+            return None
+
+        row = self._recent_packet_history.get(pkt_hash)
+        if row is None:
+            return None
+
+        sightings = list(row["sightings"])
+        return {
+            "pkt_hash": row["pkt_hash"],
+            "first_seen": row["first_seen"],
+            "last_seen": row["last_seen"],
+            "count": len(sightings),
+            "path_summary": self._format_path_summary(sightings),
+            "sightings": sightings,
+        }
+
     async def _deliver_discord_to_mesh(self, msg: BridgeMessage) -> None:
         """Send a Discord message to mesh."""
         if self.state.global_paused:
@@ -770,6 +928,14 @@ class MeshBridge:
                     if msg.metadata.get("control_discover_snr") is not None:
                         detail_parts.append(f"discover_snr={msg.metadata['control_discover_snr']}")
                     details = " " + " ".join(detail_parts)
+                elif msg.metadata.get("likely_retransmit"):
+                    detail_parts = [f"pkt_hash={msg.metadata.get('pkt_hash')}"]
+                    via = msg.metadata.get("likely_retransmit_via")
+                    if via:
+                        detail_parts.append(f"likely_retransmit_via={via}")
+                    else:
+                        detail_parts.append("same_pkt_as_recent=yes")
+                    details = " " + " ".join(detail_parts)
 
                 rf_log.info(
                     "%s key=%s key_prefix=%s reachability=%s hops=%s snr=%s rssi=%s path=%s%s",
@@ -914,6 +1080,8 @@ class MeshBridge:
                     msg.sender.key_prefix = pubkey_hex[:8]
                 if not msg.sender.display or msg.sender.display == "unknown":
                     msg.sender.display = msg.sender.key_prefix or msg.sender.display
+
+        self._annotate_recent_packet_reuse(msg)
 
         if msg.path.direct:
             msg.rf.reachability = "direct"

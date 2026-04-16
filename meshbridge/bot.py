@@ -196,6 +196,103 @@ class MeshBridgeBot(commands.Bot):
 
             await interaction.edit_original_response(content=f"Advert sent (flood={flood}).")
 
+        @group.command(name="discover", description="Send a MeshCore discover request")
+        @app_commands.describe(
+            filter_bits="MeshCore advert-type filter bitmask; 6 matches the MeshMapper-style repeater/infra ping",
+            prefix_only="Ask responders to return only a pubkey prefix instead of a full key",
+            since="Optional last-modified timestamp filter; use 0 for a full discover",
+        )
+        async def discover_cmd(
+            interaction: discord.Interaction,
+            filter_bits: app_commands.Range[int, 0, 255] = 6,
+            prefix_only: bool = False,
+            since: int = 0,
+        ) -> None:
+            if not is_admin_user(interaction):
+                await interaction.response.send_message("You do not have permission.", ephemeral=True)
+                return
+
+            await interaction.response.defer(ephemeral=True)
+
+            try:
+                # This sends a real MeshCore DISCOVER_REQ from the companion-side
+                # radio. It is best thought of as "what can this local radio elicit
+                # nearby right now?" which is usually a good proxy for a co-sited
+                # repeater, but not a remote repeater's full internal neighbor list.
+                result = await self.bridge.mesh.send_node_discover_req(
+                    filter_bits=filter_bits,
+                    prefix_only=prefix_only,
+                    since=since,
+                )
+            except Exception as exc:
+                await interaction.edit_original_response(content=f"Discover failed: {exc}")
+                return
+
+            tag = None
+            if getattr(result, "payload", None):
+                tag = result.payload.get("tag")
+
+            content = (
+                f"Discover request sent (filter_bits={filter_bits}, prefix_only={prefix_only}, since={since}, tag={tag}). "
+                "Watch the RF logs for DISCOVER_RESP frames."
+            )
+            await interaction.edit_original_response(content=content)
+
+        @group.command(name="packets", description="Show recent observed packet propagation summaries")
+        async def packets_cmd(interaction: discord.Interaction) -> None:
+            if not is_admin_user(interaction):
+                await interaction.response.send_message("You do not have permission.", ephemeral=True)
+                return
+
+            rows = self.bridge.list_recent_packet_paths(limit=10)
+            if not rows:
+                await interaction.response.send_message("No recent packet observations yet.", ephemeral=True)
+                return
+
+            lines = []
+            for row in rows:
+                pkt_hash = row["pkt_hash"]
+                control = row.get("control_subtype_name")
+                control_text = f" | control={control}" if control else ""
+                lines.append(
+                    f"pkt_hash={pkt_hash} | seen={row['count']} | path={row['path_summary']} | "
+                    f"reachability={row['latest_reachability']} | snr={row['latest_snr']} | rssi={row['latest_rssi']}{control_text}"
+                )
+
+            await interaction.response.send_message("\n".join(lines), ephemeral=True)
+
+        @group.command(name="packet", description="Show one packet's observed propagation path")
+        @app_commands.describe(pkt_hash="Packet hash in decimal or hex (for example 3158068015 or 0xbc3f1234)")
+        async def packet_cmd(interaction: discord.Interaction, pkt_hash: str) -> None:
+            if not is_admin_user(interaction):
+                await interaction.response.send_message("You do not have permission.", ephemeral=True)
+                return
+
+            details = self.bridge.get_packet_path_details(pkt_hash)
+            if details is None:
+                await interaction.response.send_message("Packet hash not found in recent observations.", ephemeral=True)
+                return
+
+            # Present the operator view as an observed propagation history rather
+            # than a guaranteed protocol-level end-to-end route.
+            lines = [
+                f"pkt_hash={details['pkt_hash']}",
+                f"first_seen={details['first_seen']}",
+                f"last_seen={details['last_seen']}",
+                f"sightings={details['count']}",
+                f"observed_path={details['path_summary']}",
+            ]
+
+            for index, sighting in enumerate(details["sightings"], start=1):
+                control = sighting.get("control_subtype_name")
+                control_text = f" control={control}" if control else ""
+                lines.append(
+                    f"{index}. ts={sighting['ts']} reachability={sighting['reachability']} "
+                    f"path={sighting['path']} snr={sighting['snr']} rssi={sighting['rssi']}{control_text}"
+                )
+
+            await interaction.response.send_message("\n".join(lines), ephemeral=True)
+
         return group
 
     def _build_neighbors_group(self) -> app_commands.Group:

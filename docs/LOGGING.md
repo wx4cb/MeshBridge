@@ -98,6 +98,7 @@ In practice, this can include lines showing:
 - `node_type=chat|repeater|room_server|sensor`
 - `discover_snr=...`
 - parsed hop/path data
+- `likely_retransmit_via=...`
 
 ### `QUIET`
 Suppresses routine bridge logs and keeps only serious errors prominent.

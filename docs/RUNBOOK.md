@@ -10,6 +10,43 @@ python3 main.py --config config.hjson
 python3 main.py --config config.hjson --check-config
 ```
 
+## Mesh discover command
+You can send a MeshCore discover request from Discord with:
+
+```text
+/mesh discover
+```
+
+Defaults are chosen to match the MeshMapper-style infrastructure ping:
+
+- `filter_bits=6`
+- `prefix_only=false`
+- `since=0`
+
+This is useful for asking the companion device to elicit nearby `DISCOVER_RESP` frames and identify nearby repeater-style infrastructure.
+
+Caveat:
+
+- this shows what the companion device can directly discover over RF
+- when the companion is co-sited with the repeater, that is usually a good proxy for the repeater's local RF neighborhood
+- it is not a perfect substitute for a remote repeater-internal neighbor table
+
+## Packet path summary commands
+You can inspect recent observed propagation paths with:
+
+```text
+/mesh packets
+/mesh packet 3158068015
+```
+
+These commands summarize recent RF sightings by `pkt_hash` and help answer whether:
+
+- the same packet was heard multiple times
+- a repeater likely rebroadcast it
+- a repeater hash appeared in the recovered path
+
+Treat this as an observed local-hearing summary, not a guaranteed end-to-end routing record.
+
 ## Useful logging presets
 
 ### RF testing
@@ -84,6 +121,13 @@ That usually means the packet was an unencrypted MeshCore control frame and the 
 
 For flooded or direct packets, `path=[...]` and `hops=...` may also appear even when the adapter exposed the path as a compact hex string rather than a list.
 
+If the same `pkt_hash` is later seen with a longer path, the bridge may annotate the later log line with:
+
+- `pkt_hash=...`
+- `likely_retransmit_via=...`
+
+That usually means you first heard the original flood packet and then heard a repeater rebroadcast of that same packet with its path hash appended.
+
 If you see `rf_source=pending_rf_correlation` in future tooling or debug output, that means the message itself did not carry RF metadata and the bridge filled it from a nearby anonymous RF event using timestamp correlation.
 
 Example:
@@ -97,6 +141,8 @@ In this example:
 
 - the first line is a decoded MeshCore control packet, specifically a `DISCOVER_RESP`
 - the second line is a normal routed packet with recovered hop/path metadata, but no decoded control subtype
+
+If the same flooded packet is heard again with a longer path, `/mesh packet <pkt_hash>` will now show that series as an observed propagation history rather than forcing you to match the raw RF lines manually.
 
 ## If reconnects keep happening
 Check:

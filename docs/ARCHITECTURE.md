@@ -122,6 +122,8 @@ When a control frame can be decoded, the bridge surfaces additional RF log conte
 
 If a `DISCOVER_RESP` includes an 8-byte or 32-byte public-key field, the bridge also attaches that identity to the in-memory message so the packet is no longer treated as fully anonymous in RF logs.
 
+The bridge can also originate a discover request itself through the companion-device connection when the MeshCore command API exposes `send_node_discover_req(...)`.
+
 ## Path decoding
 MeshCore adapter payloads do not always expose path data in the same shape.
 
@@ -131,6 +133,16 @@ The bridge accepts:
 - string-form hex paths from `RX_LOG_DATA`
 
 This allows the bridge to recover hop/path metadata for flooded and direct packets even when the adapter emits packet bytes in a lower-level decoded form.
+
+When the same low-level packet hash is seen again with a longer recovered path, the bridge annotates that RF log line as a likely retransmission and highlights the repeater hash that appears to have forwarded it.
+
+The bridge also keeps a short in-memory packet-sighting history keyed by `pkt_hash`. This is exposed through Discord commands as an observed propagation summary, which is intended to answer:
+
+- "did I hear this packet more than once?"
+- "did a repeater rebroadcast it?"
+- "which repeater hash showed up in the observed path?"
+
+This summary is observational rather than authoritative. It reflects what the local radio heard over time, not necessarily the full protocol-level end-to-end route.
 
 ## Neighbor persistence model
 Neighbor state is tracked in memory and marked dirty when it changes.

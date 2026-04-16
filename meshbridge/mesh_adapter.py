@@ -148,6 +148,35 @@ class MeshAdapter:
 
         raise RuntimeError("MeshCore path discovery command is unavailable")
 
+    async def send_node_discover_req(
+        self,
+        filter_bits: int,
+        prefix_only: bool = False,
+        since: int | None = None,
+    ) -> Any:
+        """Send a MeshCore NODE_DISCOVER_REQ control packet.
+
+        This uses the control-data helper exposed by recent meshcore Python
+        bindings. The request is emitted by the companion-connected device
+        itself, so the resulting DISCOVER_RESP frames represent what that local
+        radio can directly elicit over RF.
+        """
+        if self._client is None:
+            raise RuntimeError("MeshAdapter is not connected")
+
+        commands = getattr(self._client, "commands", None)
+        if commands is None:
+            raise RuntimeError("MeshCore commands API is unavailable")
+
+        if hasattr(commands, "send_node_discover_req"):
+            return await commands.send_node_discover_req(
+                filter=filter_bits,
+                prefix_only=prefix_only,
+                since=since,
+            )
+
+        raise RuntimeError("MeshCore node discover request command is unavailable")
+
     async def send_trace(self, auth_code: int, tag: int, flags: int, path: list[str] | None = None) -> Any:
         """Send a trace request."""
         if self._client is None:
