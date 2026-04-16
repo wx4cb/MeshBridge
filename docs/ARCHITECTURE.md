@@ -103,6 +103,35 @@ MeshCore can surface related information across separate events:
 
 To bridge those pieces together, the bridge stores a short rolling window of anonymous RF samples and applies the most recent matching sample to a later named message when timestamps line up.
 
+The bridge marks these inferred values with `rf_source=pending_rf_correlation` so logs and future tooling can distinguish correlated telemetry from telemetry carried directly on the message event itself.
+
+## Control-frame decoding
+For `RAW_DATA` and `RX_LOG_DATA`, the bridge also inspects unencrypted MeshCore `CONTROL` payloads when enough packet bytes are present.
+
+Current decode support includes:
+
+- `DISCOVER_REQ`
+- `DISCOVER_RESP`
+
+When a control frame can be decoded, the bridge surfaces additional RF log context such as:
+
+- control subtype name
+- discover response node type
+- discover tag
+- discover-reported SNR
+
+If a `DISCOVER_RESP` includes an 8-byte or 32-byte public-key field, the bridge also attaches that identity to the in-memory message so the packet is no longer treated as fully anonymous in RF logs.
+
+## Path decoding
+MeshCore adapter payloads do not always expose path data in the same shape.
+
+The bridge accepts:
+
+- list-form hop paths
+- string-form hex paths from `RX_LOG_DATA`
+
+This allows the bridge to recover hop/path metadata for flooded and direct packets even when the adapter emits packet bytes in a lower-level decoded form.
+
 ## Neighbor persistence model
 Neighbor state is tracked in memory and marked dirty when it changes.
 

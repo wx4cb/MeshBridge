@@ -71,6 +71,21 @@ Check `RFONLY` logs for:
 
 Not every MeshCore environment emits the same RF metadata in the same shape, so some adapter-specific tuning may still be needed in `meshbridge/mesh_adapter.py`.
 
+## Reading RF logs
+With current decoding, RF logs may now include extra details on `RAW_DATA` and `RX_LOG_DATA` lines such as:
+
+- `control=DISCOVER_REQ`
+- `control=DISCOVER_RESP`
+- `node_type=repeater`
+- `tag=...`
+- `discover_snr=...`
+
+That usually means the packet was an unencrypted MeshCore control frame and the bridge was able to decode the subtype directly from the packet payload.
+
+For flooded or direct packets, `path=[...]` and `hops=...` may also appear even when the adapter exposed the path as a compact hex string rather than a list.
+
+If you see `rf_source=pending_rf_correlation` in future tooling or debug output, that means the message itself did not carry RF metadata and the bridge filled it from a nearby anonymous RF event using timestamp correlation.
+
 ## If reconnects keep happening
 Check:
 

@@ -88,7 +88,16 @@ Enables RF/path/probe logging:
 - path updates and responses
 - RF samples
 - pending RF correlation
+- decoded control-frame details from `RAW_DATA` / `RX_LOG_DATA`
 - auto-probe activity
+
+In practice, this can include lines showing:
+
+- `control=DISCOVER_REQ`
+- `control=DISCOVER_RESP`
+- `node_type=chat|repeater|room_server|sensor`
+- `discover_snr=...`
+- parsed hop/path data
 
 ### `QUIET`
 Suppresses routine bridge logs and keeps only serious errors prominent.

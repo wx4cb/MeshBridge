@@ -33,6 +33,18 @@ system_log = logging.getLogger("meshbridge.system")
 traffic_log = logging.getLogger("meshbridge.traffic")
 rf_log = logging.getLogger("meshbridge.rf")
 
+CONTROL_SUBTYPE_NAMES = {
+    0x8: "DISCOVER_REQ",
+    0x9: "DISCOVER_RESP",
+}
+
+DISCOVER_NODE_TYPE_NAMES = {
+    0x1: "chat",
+    0x2: "repeater",
+    0x3: "room_server",
+    0x4: "sensor",
+}
+
 
 def resolve_sender_display(msg: BridgeMessage) -> str:
     """Return the best available sender display name for a message."""
@@ -150,6 +162,110 @@ def extract_key_prefix(payload: dict[str, Any], full_key: str | None) -> str | N
         return str(full_key)[:8]
 
     return None
+
+
+def _coerce_int(value: Any) -> int | None:
+    """Return a best-effort integer conversion."""
+    if value is None:
+        return None
+
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def decode_mesh_path(payload: dict[str, Any]) -> tuple[list[str], int | None, bool, bool]:
+    """Decode path metadata from MeshCore payload variants."""
+    path = payload.get("path")
+    route_typename = str(payload.get("route_typename") or "").upper()
+
+    if isinstance(path, list):
+        raw_path = [str(item) for item in path]
+        hop_count = len(raw_path)
+    elif isinstance(path, str):
+        compact = path.strip()
+        path_len = _coerce_int(payload.get("path_len"))
+        hash_size = _coerce_int(payload.get("path_hash_size"))
+        if compact and path_len is not None and hash_size is not None and hash_size > 0:
+            # RX_LOG_DATA can expose path bytes as a hex string instead of a list.
+            # Re-slice that string into hop hashes using the advertised hash width.
+            width = hash_size * 2
+            raw_path = [
+                compact[index:index + width]
+                for index in range(0, min(len(compact), path_len * width), width)
+                if compact[index:index + width]
+            ]
+            hop_count = len(raw_path)
+        else:
+            raw_path = []
+            # Direct zero-hop packets often report an empty string path rather than
+            # an explicit hop list, so preserve that distinction for reachability.
+            hop_count = 0 if route_typename == "DIRECT" else None
+    else:
+        hops = payload.get("hops")
+        if isinstance(hops, list):
+            raw_path = [str(item) for item in hops]
+            hop_count = len(raw_path)
+        else:
+            raw_path = []
+            hop_count = 0 if route_typename == "DIRECT" else None
+
+    repeated = bool(hop_count and hop_count > 0)
+    direct = route_typename == "DIRECT" and hop_count == 0
+    return raw_path, hop_count, repeated, direct
+
+
+def decode_control_payload(payload: dict[str, Any]) -> dict[str, Any] | None:
+    """Decode unencrypted MeshCore CONTROL payloads when enough data is present."""
+    if str(payload.get("payload_typename") or "").upper() != "CONTROL":
+        return None
+
+    pkt_payload = payload.get("pkt_payload")
+    if isinstance(pkt_payload, str):
+        try:
+            pkt_payload = bytes.fromhex(pkt_payload)
+        except ValueError:
+            pkt_payload = None
+
+    if not isinstance(pkt_payload, (bytes, bytearray)) or len(pkt_payload) < 1:
+        return None
+
+    frame = bytes(pkt_payload)
+    flags = frame[0]
+    # MeshCore CONTROL uses the upper nibble as the control subtype.
+    subtype = (flags >> 4) & 0x0F
+    decoded: dict[str, Any] = {
+        "subtype": subtype,
+        "subtype_name": CONTROL_SUBTYPE_NAMES.get(subtype, f"0x{subtype:X}"),
+    }
+
+    if subtype == 0x8 and len(frame) >= 6:
+        # DISCOVER_REQ layout:
+        # [flags][type_filter][tag:4][since?:4]
+        decoded["prefix_only"] = bool(flags & 0x01)
+        decoded["type_filter"] = frame[1]
+        decoded["tag"] = int.from_bytes(frame[2:6], "little")
+        if len(frame) >= 10:
+            decoded["since"] = int.from_bytes(frame[6:10], "little")
+        return decoded
+
+    if subtype == 0x9 and len(frame) >= 7:
+        # DISCOVER_RESP layout:
+        # [flags][snr*4][tag:4][pubkey:8|32]
+        node_type = flags & 0x0F
+        raw_snr = int.from_bytes(frame[1:2], "little", signed=True)
+        decoded["node_type"] = node_type
+        decoded["node_type_name"] = DISCOVER_NODE_TYPE_NAMES.get(node_type, f"0x{node_type:X}")
+        decoded["discover_snr"] = raw_snr / 4.0
+        decoded["tag"] = int.from_bytes(frame[2:6], "little")
+        pubkey_bytes = frame[6:]
+        if pubkey_bytes:
+            decoded["pubkey_hex"] = pubkey_bytes.hex()
+            decoded["pubkey_size"] = len(pubkey_bytes)
+        return decoded
+
+    return decoded
 
 
 class MeshBridge:
@@ -356,6 +472,10 @@ class MeshBridge:
         if msg.rf.snr is None and msg.rf.rssi is None:
             return
 
+        # RAW_DATA / RX_LOG_DATA can arrive without a sender identity and then be
+        # followed a moment later by a message event that contains the human-usable
+        # sender details. Keep a short rolling window of those anonymous samples so
+        # we can graft the RF metadata onto the later message when timing matches.
         self._pending_rf_samples.append(
             {
                 "ts": msg.created_at,
@@ -367,6 +487,8 @@ class MeshBridge:
             }
         )
 
+        # The correlation window is intentionally short. We only want "same burst"
+        # RF telemetry, not stale samples from unrelated packets seen much earlier.
         cutoff = msg.created_at - 10
         self._pending_rf_samples = [
             sample for sample in self._pending_rf_samples
@@ -390,6 +512,9 @@ class MeshBridge:
             return False
 
         now_ts = msg.created_at
+        # Use a small symmetric time window because the event ordering is close but
+        # not guaranteed. The newest matching sample is the best guess for "this
+        # RF observation belongs to this message" when the adapter splits them.
         candidates = [
             sample for sample in self._pending_rf_samples
             if abs(now_ts - sample["ts"]) <= 5
@@ -401,6 +526,8 @@ class MeshBridge:
         msg.rf.snr = sample["snr"]
         msg.rf.rssi = sample["rssi"]
 
+        # Only fill fields that the higher-level message did not already decode.
+        # Explicit per-message telemetry should always win over correlated fallback.
         if sample["reachability"] and msg.rf.reachability == "unknown":
             msg.rf.reachability = sample["reachability"]
 
@@ -410,6 +537,8 @@ class MeshBridge:
         if not msg.path.raw_path and sample["path"]:
             msg.path.raw_path = list(sample["path"])
 
+        # Mark the provenance so logs and future command surfaces can distinguish
+        # true in-message telemetry from metadata inferred by correlation.
         msg.metadata["rf_source"] = "pending_rf_correlation"
         return True
 
@@ -627,8 +756,23 @@ class MeshBridge:
                 await self._maybe_auto_probe_on_advert(msg)
 
             if event_name in {"PATH_UPDATE", "PATH_RESPONSE", "TRACE_DATA", "RAW_DATA", "RX_LOG_DATA"}:
+                details = ""
+                control_name = msg.metadata.get("control_subtype_name")
+                if control_name:
+                    # Keep the high-signal control decode details on the main RF log
+                    # line so discover traffic is recognizable without DEBUG mode.
+                    detail_parts = [f"control={control_name}"]
+                    node_type_name = msg.metadata.get("control_node_type_name")
+                    if node_type_name:
+                        detail_parts.append(f"node_type={node_type_name}")
+                    if msg.metadata.get("control_tag") is not None:
+                        detail_parts.append(f"tag={msg.metadata['control_tag']}")
+                    if msg.metadata.get("control_discover_snr") is not None:
+                        detail_parts.append(f"discover_snr={msg.metadata['control_discover_snr']}")
+                    details = " " + " ".join(detail_parts)
+
                 rf_log.info(
-                    "%s key=%s key_prefix=%s reachability=%s hops=%s snr=%s rssi=%s path=%s",
+                    "%s key=%s key_prefix=%s reachability=%s hops=%s snr=%s rssi=%s path=%s%s",
                     event_name,
                     msg.sender.key,
                     msg.sender.key_prefix,
@@ -637,6 +781,7 @@ class MeshBridge:
                     msg.rf.snr,
                     msg.rf.rssi,
                     msg.path.raw_path,
+                    details,
                 )
 
             return
@@ -693,12 +838,11 @@ class MeshBridge:
             msg.route.webhook_url = route.webhook_url
             msg.route.target = "discord"
 
-        path = payload.get("path") or payload.get("hops") or []
-        if isinstance(path, list):
-            msg.path.raw_path = [str(item) for item in path]
-            msg.path.hop_count = len(path)
-            msg.path.repeated = len(path) > 1
-            msg.path.direct = len(path) <= 1
+        raw_path, hop_count, repeated, direct = decode_mesh_path(payload)
+        msg.path.raw_path = raw_path
+        msg.path.hop_count = hop_count
+        msg.path.repeated = repeated
+        msg.path.direct = direct
 
         snr = payload.get("snr")
         rssi = payload.get("rssi")
@@ -732,6 +876,45 @@ class MeshBridge:
         if msg.rf.snr is not None or msg.rf.rssi is not None:
             msg.metadata["rf_source"] = event_name
 
+        control_info = decode_control_payload(payload)
+        if control_info:
+            # Preserve decoded control fields on metadata so they are available to
+            # logs now and to future command/debug surfaces without re-parsing.
+            msg.metadata["control_subtype"] = control_info.get("subtype")
+            msg.metadata["control_subtype_name"] = control_info.get("subtype_name")
+
+            if control_info.get("tag") is not None:
+                msg.metadata["control_tag"] = control_info["tag"]
+
+            if control_info.get("prefix_only") is not None:
+                msg.metadata["control_prefix_only"] = control_info["prefix_only"]
+
+            if control_info.get("type_filter") is not None:
+                msg.metadata["control_type_filter"] = control_info["type_filter"]
+
+            if control_info.get("since") is not None:
+                msg.metadata["control_since"] = control_info["since"]
+
+            if control_info.get("node_type") is not None:
+                msg.metadata["control_node_type"] = control_info["node_type"]
+                msg.metadata["control_node_type_name"] = control_info.get("node_type_name")
+
+            if control_info.get("discover_snr") is not None:
+                msg.metadata["control_discover_snr"] = control_info["discover_snr"]
+
+            pubkey_hex = control_info.get("pubkey_hex")
+            if isinstance(pubkey_hex, str) and pubkey_hex:
+                # DISCOVER_RESP can carry either an 8-byte prefix or a full 32-byte
+                # public key. When we have it, attach it to the sender so RF logs and
+                # neighbor tracking can stop treating the frame as anonymous.
+                if control_info.get("pubkey_size") == 32:
+                    msg.sender.key = pubkey_hex
+                    msg.sender.key_prefix = pubkey_hex[:8]
+                else:
+                    msg.sender.key_prefix = pubkey_hex[:8]
+                if not msg.sender.display or msg.sender.display == "unknown":
+                    msg.sender.display = msg.sender.key_prefix or msg.sender.display
+
         if msg.path.direct:
             msg.rf.reachability = "direct"
         elif msg.path.repeated:
@@ -755,5 +938,7 @@ class MeshBridge:
 
         if event_name in {"RAW_DATA", "RX_LOG_DATA"}:
             rf_log.debug("%s raw payload: %r", event_name, payload)
+            if control_info:
+                rf_log.debug("%s decoded control payload: %r", event_name, control_info)
 
         return msg
