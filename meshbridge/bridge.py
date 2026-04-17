@@ -111,7 +111,13 @@ def extract_sender_name(payload: dict[str, Any]) -> str | None:
 
 def extract_full_key(payload: dict[str, Any]) -> str | None:
     """Extract the full key when present."""
-    direct_candidates = [payload.get("pubkey"), payload.get("public_key")]
+    direct_candidates = [
+        payload.get("pubkey"),
+        payload.get("public_key"),
+        # Advert-style RF payloads often carry identity here instead of the
+        # generic pubkey fields, so treat it as first-class keyed evidence.
+        payload.get("adv_key"),
+    ]
     for value in direct_candidates:
         if value is not None:
             return str(value)
@@ -127,7 +133,7 @@ def extract_full_key(payload: dict[str, Any]) -> str | None:
     for obj in nested_objects:
         if not isinstance(obj, dict):
             continue
-        for key in ("pubkey", "public_key"):
+        for key in ("pubkey", "public_key", "adv_key"):
             value = obj.get(key)
             if value is not None:
                 return str(value)
@@ -137,7 +143,13 @@ def extract_full_key(payload: dict[str, Any]) -> str | None:
 
 def extract_key_prefix(payload: dict[str, Any], full_key: str | None) -> str | None:
     """Extract or derive the display key prefix."""
-    direct_candidates = [payload.get("pubkey_prefix"), payload.get("key_prefix")]
+    direct_candidates = [
+        payload.get("pubkey_prefix"),
+        payload.get("key_prefix"),
+        # Keep parity with extract_full_key so advert-backed nodes do not linger
+        # as provisional when the adapter only exposed advert-specific fields.
+        payload.get("adv_key_prefix"),
+    ]
     for value in direct_candidates:
         if value is not None:
             return str(value)[:8]
@@ -153,7 +165,7 @@ def extract_key_prefix(payload: dict[str, Any], full_key: str | None) -> str | N
     for obj in nested_objects:
         if not isinstance(obj, dict):
             continue
-        for key in ("pubkey_prefix", "key_prefix"):
+        for key in ("pubkey_prefix", "key_prefix", "adv_key_prefix"):
             value = obj.get(key)
             if value is not None:
                 return str(value)[:8]
@@ -671,6 +683,7 @@ class MeshBridge:
                     "last_seen": row["last_seen"],
                     "count": len(sightings),
                     "path_summary": self._format_path_summary(sightings),
+                    "latest_path": list(latest.get("path") or []),
                     "latest_snr": latest.get("snr"),
                     "latest_rssi": latest.get("rssi"),
                     "latest_reachability": latest.get("reachability"),
@@ -697,6 +710,7 @@ class MeshBridge:
             "last_seen": row["last_seen"],
             "count": len(sightings),
             "path_summary": self._format_path_summary(sightings),
+            "latest_path": list(sightings[-1].get("path") or []),
             "sightings": sightings,
         }
 
@@ -881,15 +895,6 @@ class MeshBridge:
                 )
 
             self.neighbors.update_from_message(msg)
-
-            if msg.sender.name and not msg.sender.key and not msg.sender.key_prefix:
-                upgraded = self.neighbors.upgrade_recent_unnamed_neighbor(
-                    route_name=msg.route.route_name,
-                    msg=msg,
-                    max_age_seconds=120,
-                )
-                if upgraded:
-                    rf_log.info("Heuristically upgraded recent unnamed neighbor to %s", msg.sender.name)
 
             await self.enqueue_mesh_message(msg)
             return

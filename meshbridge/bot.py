@@ -29,7 +29,7 @@ def format_neighbor_label(name: str | None, key: str | None) -> str:
         return "unknown (provisional)"
 
     if name:
-        return name
+        return f"{name} ({short_key})"
 
     return short_key
 
@@ -37,6 +37,100 @@ def format_neighbor_label(name: str | None, key: str | None) -> str:
 def is_provisional_neighbor_key(key: str | None) -> bool:
     """Return True if the neighbor key is a provisional placeholder."""
     return bool(key) and key.startswith("name:")
+
+
+def short_node_key(key: str | None) -> str:
+    """Return an operator-friendly 4-byte node prefix when possible."""
+    if not key:
+        return "unknown"
+    if key.startswith("name:"):
+        return key
+    return key[:8]
+
+
+def format_path_hop(bridge, hop: str) -> str:
+    """Render one observed path hop with best-effort node resolution.
+
+    MeshCore packets may carry 1-byte, 2-byte, or longer hop hashes depending
+    on how the packet was encoded. We preserve the exact hop text seen on the
+    wire and only expand it when the local neighbor table can resolve that hop
+    unambiguously to a known node. For Discord output we stop at a 4-byte node
+    prefix (8 hex chars), which is usually enough to be useful without making
+    the path unreadably long.
+    """
+    needle = str(hop).strip().lower()
+    if not needle:
+        return "unknown"
+
+    matches = []
+    for row in bridge.neighbors.list_recent():
+        if is_provisional_neighbor_key(row.key):
+            continue
+
+        key = (row.key or "").lower()
+        key_prefix = key[:8]
+        if key.startswith(needle) or key_prefix.startswith(needle):
+            matches.append(row)
+
+    # If we cannot resolve the hop locally, keep the raw on-air hash.
+    if not matches:
+        return needle
+
+    # A unique match lets us expand the short hop into a stable 4-byte prefix.
+    if len(matches) == 1:
+        row = matches[0]
+        return row.key[:8]
+
+    # Multiple candidates sharing the same short hop means the packet did not
+    # carry enough path width to disambiguate them. Show the ambiguity plainly.
+    candidates = ", ".join(sorted({row.key[:8] for row in matches})[:3])
+    return f"{needle}(ambiguous:{candidates})"
+
+
+def format_observed_path(bridge, path: list[str]) -> str:
+    """Render an observed message path for Discord command output."""
+    if not path:
+        return ""
+    return " -> ".join(format_path_hop(bridge, hop) for hop in path)
+
+
+def has_node_list_signal(row) -> bool:
+    """Return True when a node row has useful operator-facing signal."""
+    if is_provisional_neighbor_key(row.key):
+        return True
+    if row.name:
+        return True
+    if row.reachability not in (None, "unknown"):
+        return True
+    if row.hop_count is not None:
+        return True
+    if row.snr is not None or row.rssi is not None:
+        return True
+    return bool(row.path)
+
+
+def format_node_list_line(bridge, row) -> str:
+    """Format one operator-friendly line for `/nodes list`."""
+    label = format_neighbor_label(row.name, row.key)
+    details = [f"{label} | key={short_node_key(row.key)}"]
+
+    if row.reachability not in (None, "unknown"):
+        details.append(f"reachability={row.reachability}")
+
+    if row.hop_count is not None:
+        details.append(f"hops={row.hop_count}")
+
+    path_text = format_observed_path(bridge, row.path)
+    if path_text:
+        details.append(f"path={path_text}")
+
+    if row.snr is not None:
+        details.append(f"snr={row.snr}")
+
+    if row.rssi is not None:
+        details.append(f"rssi={row.rssi}")
+
+    return " | ".join(details)
 
 
 class MeshBridgeBot(commands.Bot):
@@ -254,8 +348,10 @@ class MeshBridgeBot(commands.Bot):
                 pkt_hash = row["pkt_hash"]
                 control = row.get("control_subtype_name")
                 control_text = f" | control={control}" if control else ""
+                resolved_path = format_observed_path(self.bridge, row.get("latest_path") or [])
+                path_text = f" | path={resolved_path}" if resolved_path else ""
                 lines.append(
-                    f"pkt_hash={pkt_hash} | seen={row['count']} | path={row['path_summary']} | "
+                    f"pkt_hash={pkt_hash} | seen={row['count']} | observed={row['path_summary']}{path_text} | "
                     f"reachability={row['latest_reachability']} | snr={row['latest_snr']} | rssi={row['latest_rssi']}{control_text}"
                 )
 
@@ -282,13 +378,19 @@ class MeshBridgeBot(commands.Bot):
                 f"sightings={details['count']}",
                 f"observed_path={details['path_summary']}",
             ]
+            resolved_latest_path = format_observed_path(self.bridge, details["latest_path"])
+            if resolved_latest_path:
+                lines.append(f"path={resolved_latest_path}")
 
             for index, sighting in enumerate(details["sightings"], start=1):
                 control = sighting.get("control_subtype_name")
                 control_text = f" control={control}" if control else ""
+                resolved = format_observed_path(self.bridge, sighting["path"])
+                resolved_text = f" resolved={resolved}" if resolved else ""
                 lines.append(
                     f"{index}. ts={sighting['ts']} reachability={sighting['reachability']} "
-                    f"path={sighting['path']} snr={sighting['snr']} rssi={sighting['rssi']}{control_text}"
+                    f"path={sighting['path']}{resolved_text} "
+                    f"snr={sighting['snr']} rssi={sighting['rssi']}{control_text}"
                 )
 
             await interaction.response.send_message("\n".join(lines), ephemeral=True)
@@ -308,11 +410,12 @@ class MeshBridgeBot(commands.Bot):
 
             lines = []
             for row in rows:
-                label = format_neighbor_label(row.name, row.key)
-                lines.append(
-                    f"{label} | key={row.key} | reachability={row.reachability} | "
-                    f"hops={row.hop_count} | last_seen={row.last_seen}"
-                )
+                if has_node_list_signal(row):
+                    line = format_node_list_line(self.bridge, row)
+                else:
+                    label = format_neighbor_label(row.name, row.key)
+                    line = f"{label} | key={short_node_key(row.key)}"
+                lines.append(f"{line} | last_seen={row.last_seen}")
 
             await interaction.response.send_message("\n".join(lines), ephemeral=True)
 
@@ -332,7 +435,7 @@ class MeshBridgeBot(commands.Bot):
                     f"display_name={label}",
                     f"confirmed_name={confirmed_name}",
                     f"provisional={provisional}",
-                    f"key={row.key}",
+                    f"key={short_node_key(row.key)}",
                     f"last_seen={row.last_seen}",
                     f"reachability={row.reachability}",
                     f"hop_count={row.hop_count}",
@@ -340,6 +443,7 @@ class MeshBridgeBot(commands.Bot):
                     f"rssi={row.rssi}",
                     f"rf_source={getattr(row, 'rf_source', None)}",
                     f"path={row.path}",
+                    f"resolved_path={format_observed_path(self.bridge, row.path) or 'direct/none'}",
                     f"source={row.source}",
                 ]
             )
@@ -371,7 +475,7 @@ class MeshBridgeBot(commands.Bot):
                 await interaction.edit_original_response(content=f"Probe failed: {exc}")
                 return
 
-            await interaction.edit_original_response(content=f"Probe sent for {row.key}.")
+            await interaction.edit_original_response(content=f"Probe sent for {short_node_key(row.key)}.")
 
         return group
 
@@ -381,18 +485,15 @@ class MeshBridgeBot(commands.Bot):
 
         @group.command(name="list", description="List all currently known nodes")
         async def list_cmd(interaction: discord.Interaction) -> None:
-            rows = self.bridge.neighbors.list_recent(limit=25)
+            rows = [
+                row for row in self.bridge.neighbors.list_recent()
+                if has_node_list_signal(row)
+            ][:25]
             if not rows:
-                await interaction.response.send_message("No known nodes yet.", ephemeral=True)
+                await interaction.response.send_message("No actionable nodes yet.", ephemeral=True)
                 return
 
-            lines: list[str] = []
-            for row in rows:
-                label = format_neighbor_label(row.name, row.key)
-                lines.append(
-                    f"{label} | key={row.key} | reachability={row.reachability} | "
-                    f"hops={row.hop_count} | snr={row.snr} | rssi={row.rssi}"
-                )
+            lines = [format_node_list_line(self.bridge, row) for row in rows]
 
             await interaction.response.send_message("\n".join(lines), ephemeral=True)
 

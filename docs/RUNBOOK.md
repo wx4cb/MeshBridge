@@ -47,6 +47,8 @@ These commands summarize recent RF sightings by `pkt_hash` and help answer wheth
 
 Treat this as an observed local-hearing summary, not a guaranteed end-to-end routing record.
 
+Discord-facing views prefer 4-byte node prefixes (`8` hex chars) where possible so packet and node paths stay readable.
+
 ## Useful logging presets
 
 ### RF testing
@@ -96,6 +98,9 @@ But has not yet matched it to:
 
 It should merge into a keyed record later when advert/contact/path data arrives and can be correlated safely.
 
+Recent builds also trust advert-carried identity fields such as `adv_key`, so a
+node that is repeatedly advertising with a key should stop appearing as provisional.
+
 ## If RF fields stay `None`
 Check `RFONLY` logs for:
 
@@ -121,6 +126,11 @@ That usually means the packet was an unencrypted MeshCore control frame and the 
 
 For flooded or direct packets, `path=[...]` and `hops=...` may also appear even when the adapter exposed the path as a compact hex string rather than a list.
 
+Neighbor views also normalize stored RF state before display. If you still see a
+combination like `reachability=direct` with a non-empty `path`, you are likely
+looking at stale in-memory state from before a restart or before newer packets
+overwrote the record.
+
 If the same `pkt_hash` is later seen with a longer path, the bridge may annotate the later log line with:
 
 - `pkt_hash=...`
@@ -133,7 +143,7 @@ If you see `rf_source=pending_rf_correlation` in future tooling or debug output,
 Example:
 
 ```text
-2026-04-16 18:53:11,081 INFO meshbridge.rf: RX_LOG_DATA key=dbf23a422d8c2cf7f18c155c22900d6d0c2c7bed7ed94e72cb3b81ac44d16451 key_prefix=dbf23a42 reachability=direct hops=0 snr=11.5 rssi=-69.0 path=[] control=DISCOVER_RESP node_type=repeater tag=1700061148 discover_snr=4.25
+2026-04-16 18:53:11,081 INFO meshbridge.rf: RX_LOG_DATA key=dbf23a42... key_prefix=dbf23a42 reachability=direct hops=0 snr=11.5 rssi=-69.0 path=[] control=DISCOVER_RESP node_type=repeater tag=1700061148 discover_snr=4.25
 2026-04-16 18:54:03,634 INFO meshbridge.rf: RX_LOG_DATA key=None key_prefix=None reachability=multi_hop hops=1 snr=11.5 rssi=-66.0 path=['dbf2']
 ```
 
@@ -143,6 +153,22 @@ In this example:
 - the second line is a normal routed packet with recovered hop/path metadata, but no decoded control subtype
 
 If the same flooded packet is heard again with a longer path, `/mesh packet <pkt_hash>` will now show that series as an observed propagation history rather than forcing you to match the raw RF lines manually.
+
+Example Discord-style path output:
+
+```text
+WX4CB T250 | key=dbf23a42 | reachability=multi_hop | hops=3 | path=d93a1f20 -> bdc4017e -> dbf23a42 | snr=12.75 | rssi=-64.0
+```
+
+If a short on-air hop cannot be resolved uniquely, the bridge keeps the raw hop text or marks it as ambiguous instead of pretending to know which node it was.
+
+## If a neighbor name is obviously attached to the wrong key
+Check `RFONLY` logs for `adv_name` and `adv_key` on recent advert packets.
+
+If the logs show the correct mapping but Discord output does not:
+- restart the bridge so any stale in-memory neighbor cache is rebuilt
+- confirm that later traffic re-populates the corrected keyed record
+- inspect `neighbors.json` to see whether a stale persisted entry needs to be replaced
 
 ## If reconnects keep happening
 Check:

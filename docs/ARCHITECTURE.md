@@ -84,6 +84,11 @@ Stable neighbors:
 - may be upgraded later with a better confirmed display name
 - are eligible for persistence to `neighbors.json`
 
+Keyed identity can come from:
+- explicit message/contact key fields
+- advert-carried key fields such as `adv_key`
+- decoded control frames that expose a public key or prefix
+
 ### Provisional neighbor
 Created when the bridge hears a sender name before it has a confirmed mesh key.
 
@@ -92,6 +97,11 @@ Provisional neighbors:
 - are shown as provisional in Discord commands
 - are merged into keyed records when later advert/contact/path data confirms identity
 - are never written to disk
+
+The bridge no longer assigns a name to "the most recent unnamed keyed neighbor"
+based on timing alone. A provisional name is only upgraded when the keyed event
+itself carries identity evidence or a keyed record already exists for that same
+name.
 
 ## RF correlation model
 MeshCore can surface related information across separate events:
@@ -144,6 +154,8 @@ The bridge also keeps a short in-memory packet-sighting history keyed by `pkt_ha
 
 This summary is observational rather than authoritative. It reflects what the local radio heard over time, not necessarily the full protocol-level end-to-end route.
 
+Discord operator views prefer 4-byte node prefixes (`8` hex chars) for node and path display. When a short hop can be resolved uniquely against the local neighbor table, the bridge expands it to that 4-byte prefix; otherwise it keeps the raw hop text or marks the hop as ambiguous.
+
 ## Neighbor persistence model
 Neighbor state is tracked in memory and marked dirty when it changes.
 
@@ -151,6 +163,10 @@ Persistence behavior:
 - stable keyed neighbors are saved to the configured cache file
 - provisional neighbors are excluded
 - writes are periodic and on shutdown, instead of on every event
+
+Before records are displayed or persisted, their RF fields are normalized so
+`path`, `hop_count`, and `reachability` stay internally consistent. For example,
+a non-empty observed path forces `reachability=multi_hop` and `hop_count=len(path)`.
 
 This keeps the cache compact while avoiding repeated disk writes on RF-heavy traffic.
 

@@ -27,6 +27,17 @@ def provisional_neighbor_id(name: str | None) -> str | None:
     return f"name:{cleaned.lower()}"
 
 
+def reachability_rank(value: str | None) -> int:
+    """Rank reachability so we keep the most useful observed state."""
+    order = {
+        None: 0,
+        "unknown": 1,
+        "multi_hop": 2,
+        "direct": 3,
+    }
+    return order.get(value, 0)
+
+
 class NeighborStore:
     """Track mesh neighbors and persist a small cache."""
 
@@ -48,8 +59,27 @@ class NeighborStore:
         self._dirty = True
         self._sorted_cache = None
 
+    @staticmethod
+    def _normalize_record_rf(record: NeighborRecord) -> None:
+        """Keep persisted/displayed RF state internally consistent."""
+        if record.path:
+            # A concrete observed path is stronger evidence than a stale
+            # reachability label from an earlier direct advert.
+            record.hop_count = len(record.path)
+            record.reachability = "multi_hop"
+            return
+
+        if record.hop_count is not None and record.hop_count > 0:
+            record.reachability = "multi_hop"
+            return
+
+        if record.reachability == "direct":
+            record.hop_count = 0
+
     def _reindex_record(self, neighbor_id: str, record: NeighborRecord) -> None:
         """Refresh helper indexes for one record."""
+        self._normalize_record_rf(record)
+
         if neighbor_id.startswith("name:"):
             self._provisional_ids.add(neighbor_id)
             self._unnamed_keyed_ids.discard(neighbor_id)
@@ -87,6 +117,13 @@ class NeighborStore:
         # Message-first path: no key yet, but we do have a real sender name.
         # ------------------------------------------------------------------
         if not canonical_id:
+            existing_id, existing_record = self._find_keyed_record_by_name(candidate_name)
+            if existing_id and existing_record:
+                self._merge_record_from_message(existing_record, msg, candidate_name)
+                self._reindex_record(existing_id, existing_record)
+                self._mark_dirty()
+                return
+
             provisional_id = provisional_neighbor_id(candidate_name)
             if not provisional_id:
                 return
@@ -210,41 +247,6 @@ class NeighborStore:
 
         self._mark_dirty()
 
-    def upgrade_recent_unnamed_neighbor(
-        self,
-        route_name: str | None,
-        msg: BridgeMessage,
-        max_age_seconds: int = 120,
-    ) -> bool:
-        """Heuristically upgrade the most recent unnamed keyed neighbor."""
-        del route_name
-
-        candidate_name = (msg.sender.name or "").strip()
-        if not candidate_name or candidate_name.lower() == "unknown":
-            return False
-
-        now_ts = msg.created_at
-
-        best_id: str | None = None
-        best_record: NeighborRecord | None = None
-        for neighbor_id in self._unnamed_keyed_ids:
-            record = self._neighbors.get(neighbor_id)
-            if record is None:
-                continue
-            if now_ts - record.last_seen > max_age_seconds:
-                continue
-            if best_record is None or record.last_seen > best_record.last_seen:
-                best_id = neighbor_id
-                best_record = record
-
-        if best_id is None or best_record is None:
-            return False
-
-        self._merge_record_from_message(best_record, msg, candidate_name)
-        self._reindex_record(best_id, best_record)
-        self._mark_dirty()
-        return True
-
     def _merge_recent_provisional_into_keyed_record(
         self,
         target: NeighborRecord,
@@ -286,6 +288,28 @@ class NeighborStore:
         self._remove_record(provisional_id)
         return True
 
+    def _find_keyed_record_by_name(self, candidate_name: str | None) -> tuple[str | None, NeighborRecord | None]:
+        """Return the newest confirmed keyed record that matches a real name."""
+        if not candidate_name:
+            return None, None
+
+        needle = candidate_name.strip().lower()
+        if not needle or needle == "unknown":
+            return None, None
+
+        best_id: str | None = None
+        best_record: NeighborRecord | None = None
+        for neighbor_id, record in self._neighbors.items():
+            if neighbor_id.startswith("name:"):
+                continue
+            if not record.name or record.name.strip().lower() != needle:
+                continue
+            if best_record is None or record.last_seen > best_record.last_seen:
+                best_id = neighbor_id
+                best_record = record
+
+        return best_id, best_record
+
     def _merge_record_from_message(
         self,
         record: NeighborRecord,
@@ -299,7 +323,7 @@ class NeighborStore:
         if candidate_name and candidate_name.lower() != "unknown":
             record.name = candidate_name
 
-        if msg.rf.reachability:
+        if reachability_rank(msg.rf.reachability) >= reachability_rank(record.reachability):
             record.reachability = msg.rf.reachability
 
         if msg.path.hop_count is not None:
@@ -316,19 +340,30 @@ class NeighborStore:
 
         if msg.path.raw_path:
             record.path = list(msg.path.raw_path)
+        elif msg.rf.reachability == "direct":
+            record.path = []
 
     def _merge_record_into_record(self, target: NeighborRecord, source: NeighborRecord) -> None:
         """Merge one record into another, keeping the best-known values."""
+        source_rank = reachability_rank(source.reachability)
+        target_rank = reachability_rank(target.reachability)
+
         if source.name and not target.name:
             target.name = source.name
 
         if source.last_seen > target.last_seen:
             target.last_seen = source.last_seen
 
-        if source.reachability and not target.reachability:
+        if source_rank > target_rank:
             target.reachability = source.reachability
 
-        if source.hop_count is not None and target.hop_count is None:
+        if (
+            source.hop_count is not None
+            and (
+                target.hop_count is None
+                or source_rank > target_rank
+            )
+        ):
             target.hop_count = source.hop_count
 
         if source.snr is not None and target.snr is None:
@@ -340,8 +375,13 @@ class NeighborStore:
         if source.rf_source and not target.rf_source:
             target.rf_source = source.rf_source
 
-        if source.path and not target.path:
+        if source.path and (
+            not target.path
+            or source_rank > target_rank
+        ):
             target.path = list(source.path)
+        elif source.reachability == "direct" and source_rank > target_rank:
+            target.path = []
 
         if source.source and (not target.source or target.source == "unknown"):
             target.source = source.source
