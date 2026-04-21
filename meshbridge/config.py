@@ -161,6 +161,12 @@ class AppConfig:
     auto_probe_min_interval_seconds: int
 
     # ---------------------------------------------------------------------
+    # Auto-advert behavior
+    # ---------------------------------------------------------------------
+    auto_advert_interval_hours: float
+    auto_advert_flood: bool
+
+    # ---------------------------------------------------------------------
     # Route mappings
     # ---------------------------------------------------------------------
     routes: list[Route]
@@ -244,6 +250,12 @@ class AppConfig:
             # -------------------------------------------------------------
             auto_probe_on_advert=bool(raw.get("auto_probe_on_advert", True)),
             auto_probe_min_interval_seconds=int(raw.get("auto_probe_min_interval_seconds", 300)),
+
+            # -------------------------------------------------------------
+            # Auto-advert
+            # -------------------------------------------------------------
+            auto_advert_interval_hours=float(raw.get("auto_advert_interval_hours", 0)),
+            auto_advert_flood=bool(raw.get("auto_advert_flood", False)),
 
             # -------------------------------------------------------------
             # Routes

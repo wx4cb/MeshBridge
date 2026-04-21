@@ -9,9 +9,14 @@
 
 ## `/mesh`
 - `/mesh advert [flood]` sends a mesh advert through the adapter and defers the interaction first.
+- Scheduled adverts are configured with `auto_advert_interval_hours`; `/mesh advert` remains the manual send-now command.
 - `/mesh discover [filter_bits] [prefix_only] [since]` sends a MeshCore `DISCOVER_REQ` control packet from the companion device.
 - `/mesh packets` shows recent observed packet propagation summaries keyed by `pkt_hash`.
 - `/mesh packet <pkt_hash>` shows one packet's observed propagation history from recent RF sightings.
+
+## `/chatters`
+- `/chatters` shows recent mesh channel senders from in-memory message history.
+- This command is useful when a node is actively talking on-channel but has not produced enough keyed advert/contact traffic to appear clearly in `/nodes` or `/neighbors`.
 
 ## `/neighbors`
 - `/neighbors list` shows the 10 most recent neighbors.

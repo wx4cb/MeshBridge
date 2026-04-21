@@ -178,6 +178,14 @@ When `auto_probe_on_advert` is enabled, an `ADVERTISEMENT` can trigger:
 
 Auto-probe is throttled per neighbor by `auto_probe_min_interval_seconds`.
 
+## Auto-advert behavior
+When `auto_advert_interval_hours` is greater than `0`, the bridge starts a
+background scheduler that sends a MeshCore advert every configured interval.
+
+The first scheduled advert is sent after one full interval, not immediately on
+startup. If MeshCore is disconnected when the timer fires, that cycle is skipped
+and the worker tries again on the next interval.
+
 ## Logging model
 MeshBridge logging has two separate controls:
 

@@ -71,6 +71,15 @@
   auto_probe_min_interval_seconds: 300
 
   # ============================================================================
+  # Auto-advert behavior
+  # ============================================================================
+  # 0 disables scheduled adverts. Positive values send one advert every N hours.
+  auto_advert_interval_hours: 0
+
+  # Use true only if you intentionally want scheduled flood adverts.
+  auto_advert_flood: false
+
+  # ============================================================================
   # Routes
   # ============================================================================
   routes: [

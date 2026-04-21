@@ -133,6 +133,46 @@ def format_node_list_line(bridge, row) -> str:
     return " | ".join(details)
 
 
+def find_exact_named_neighbor(bridge, name: str | None):
+    """Return a keyed neighbor whose name exactly matches the given chatter."""
+    needle = (name or "").strip().lower()
+    if not needle:
+        return None
+
+    for row in bridge.neighbors.list_recent():
+        if is_provisional_neighbor_key(row.key):
+            continue
+        if row.name and row.name.strip().lower() == needle:
+            return row
+
+    return None
+
+
+def shorten_preview(text: str | None, limit: int = 72) -> str:
+    """Return a compact one-line preview of recent chatter."""
+    value = " ".join((text or "").split()).strip()
+    if not value:
+        return ""
+    if len(value) <= limit:
+        return value
+    return value[: limit - 3].rstrip() + "..."
+
+
+def format_last_seen_age(timestamp: int | None) -> str:
+    """Return a compact age string for a unix timestamp."""
+    if not timestamp or timestamp <= 0:
+        return "unknown"
+
+    age_seconds = max(0, int(time.time()) - int(timestamp))
+    hours, remainder = divmod(age_seconds, 3600)
+    minutes, _ = divmod(remainder, 60)
+
+    if hours <= 0:
+        return f"{minutes}m ago"
+
+    return f"{hours}h {minutes}m ago"
+
+
 class MeshBridgeBot(commands.Bot):
     """Discord bot for bridge control and Discord-side ingestion."""
 
@@ -155,6 +195,7 @@ class MeshBridgeBot(commands.Bot):
         await self.bridge.start()
         self.tree.add_command(self._build_bridge_group())
         self.tree.add_command(self._build_mesh_group())
+        self.tree.add_command(self._build_chatters_command())
         self.tree.add_command(self._build_neighbors_group())
         self.tree.add_command(self._build_nodes_group())
         guild = discord.Object(id=self.config.discord_guild_id)
@@ -374,7 +415,7 @@ class MeshBridgeBot(commands.Bot):
             lines = [
                 f"pkt_hash={details['pkt_hash']}",
                 f"first_seen={details['first_seen']}",
-                f"last_seen={details['last_seen']}",
+                f"last_seen={format_last_seen_age(details['last_seen'])}",
                 f"sightings={details['count']}",
                 f"observed_path={details['path_summary']}",
             ]
@@ -415,7 +456,7 @@ class MeshBridgeBot(commands.Bot):
                 else:
                     label = format_neighbor_label(row.name, row.key)
                     line = f"{label} | key={short_node_key(row.key)}"
-                lines.append(f"{line} | last_seen={row.last_seen}")
+                lines.append(f"{line} | last_seen={format_last_seen_age(row.last_seen)}")
 
             await interaction.response.send_message("\n".join(lines), ephemeral=True)
 
@@ -436,7 +477,7 @@ class MeshBridgeBot(commands.Bot):
                     f"confirmed_name={confirmed_name}",
                     f"provisional={provisional}",
                     f"key={short_node_key(row.key)}",
-                    f"last_seen={row.last_seen}",
+                    f"last_seen={format_last_seen_age(row.last_seen)}",
                     f"reachability={row.reachability}",
                     f"hop_count={row.hop_count}",
                     f"snr={row.snr}",
@@ -478,6 +519,58 @@ class MeshBridgeBot(commands.Bot):
             await interaction.edit_original_response(content=f"Probe sent for {short_node_key(row.key)}.")
 
         return group
+
+    def _build_chatters_command(self) -> app_commands.Command:
+        """Create the `/chatters` command."""
+
+        @app_commands.command(name="chatters", description="List recent mesh channel senders from message history")
+        async def chatters_cmd(interaction: discord.Interaction) -> None:
+            if not is_admin_user(interaction):
+                await interaction.response.send_message("You do not have permission.", ephemeral=True)
+                return
+
+            rows = self.bridge.list_recent_chatters(limit=10)
+            if not rows:
+                await interaction.response.send_message("No recent mesh channel chatters yet.", ephemeral=True)
+                return
+
+            lines: list[str] = []
+            for row in rows:
+                neighbor = None
+                if row["key"]:
+                    neighbor = self.bridge.neighbors.get(row["key"])
+                if neighbor is None:
+                    neighbor = find_exact_named_neighbor(self.bridge, row["sender_name"])
+
+                if neighbor is not None:
+                    line = format_node_list_line(self.bridge, neighbor)
+                else:
+                    line = row["sender_name"]
+                    if row["key_prefix"]:
+                        line = f"{line} | key={row['key_prefix']}"
+                    if row["reachability"] not in (None, "unknown"):
+                        line = f"{line} | reachability={row['reachability']}"
+                    if row["hop_count"] is not None:
+                        line = f"{line} | hops={row['hop_count']}"
+                    path_text = format_observed_path(self.bridge, row["path"])
+                    if path_text:
+                        line = f"{line} | path={path_text}"
+                    if row["snr"] is not None:
+                        line = f"{line} | snr={row['snr']}"
+                    if row["rssi"] is not None:
+                        line = f"{line} | rssi={row['rssi']}"
+
+                preview = shorten_preview(row["last_text"])
+                line = f"{line} | messages={row['count']} | last_seen={format_last_seen_age(row['last_seen'])}"
+                if row["route_name"]:
+                    line = f"{line} | route={row['route_name']}"
+                if preview:
+                    line = f"{line} | last=\"{preview}\""
+                lines.append(line)
+
+            await interaction.response.send_message("\n".join(lines), ephemeral=True)
+
+        return chatters_cmd
 
     def _build_nodes_group(self) -> app_commands.Group:
         """Create the /nodes command group."""

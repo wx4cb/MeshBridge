@@ -341,6 +341,10 @@ class MeshBridge:
             asyncio.create_task(self.mesh_to_discord_worker(), name="mesh_to_discord_worker"),
             asyncio.create_task(self.persistence_worker(), name="persistence_worker"),
         ]
+        if self.config.auto_advert_interval_hours > 0:
+            self._worker_tasks.append(
+                asyncio.create_task(self.auto_advert_worker(), name="auto_advert_worker")
+            )
         self._mesh_task = asyncio.create_task(self.mesh_connection_loop(), name="mesh_connection_loop")
 
     async def stop(self) -> None:
@@ -473,6 +477,7 @@ class MeshBridge:
             try:
                 await self._deliver_mesh_to_discord(msg)
             finally:
+                self.history.add(msg)
                 self.mesh_to_discord_queue.task_done()
 
     async def persistence_worker(self) -> None:
@@ -480,6 +485,35 @@ class MeshBridge:
         while True:
             await asyncio.sleep(30)
             self.neighbors.save()
+
+    async def auto_advert_worker(self) -> None:
+        """Send scheduled MeshCore adverts when enabled in configuration."""
+        interval_hours = self.config.auto_advert_interval_hours
+        interval_seconds = max(60.0, interval_hours * 60 * 60)
+        flood = self.config.auto_advert_flood
+
+        system_log.info(
+            "Auto advert enabled: interval_hours=%s flood=%s",
+            interval_hours,
+            flood,
+        )
+
+        while not self._stop_event.is_set():
+            try:
+                await asyncio.wait_for(self._stop_event.wait(), timeout=interval_seconds)
+                break
+            except asyncio.TimeoutError:
+                pass
+
+            if not self.state.mesh_connected:
+                system_log.info("Skipping scheduled advert because MeshCore is disconnected")
+                continue
+
+            try:
+                await self.mesh.send_advert(flood=flood)
+                system_log.info("Sent scheduled advert: flood=%s", flood)
+            except Exception as exc:
+                system_log.exception("Scheduled advert failed: %s", exc)
 
     def _store_pending_rf_sample(self, msg: BridgeMessage) -> None:
         """Store an anonymous RF sample for later correlation."""
@@ -713,6 +747,39 @@ class MeshBridge:
             "latest_path": list(sightings[-1].get("path") or []),
             "sightings": sightings,
         }
+
+    def list_recent_chatters(self, limit: int = 10) -> list[dict[str, Any]]:
+        """Summarize recent mesh channel senders from message history."""
+        grouped: dict[str, dict[str, Any]] = {}
+
+        for msg in self.history.recent():
+            if msg.source != "mesh" or msg.kind != "channel":
+                continue
+
+            sender_name = (msg.sender.name or msg.sender.display or "unknown").strip() or "unknown"
+            identity = msg.sender.key or f"name:{sender_name.lower()}"
+            row = grouped.get(identity)
+            if row is None:
+                row = {
+                    "sender_name": sender_name,
+                    "key": msg.sender.key,
+                    "key_prefix": msg.sender.key_prefix,
+                    "last_seen": msg.created_at,
+                    "count": 0,
+                    "route_name": msg.route.route_name,
+                    "reachability": msg.rf.reachability,
+                    "hop_count": msg.path.hop_count,
+                    "path": list(msg.path.raw_path),
+                    "snr": msg.rf.snr,
+                    "rssi": msg.rf.rssi,
+                    "last_text": msg.text,
+                }
+                grouped[identity] = row
+
+            row["count"] += 1
+
+        rows = sorted(grouped.values(), key=lambda item: item["last_seen"], reverse=True)
+        return rows[:limit]
 
     async def _deliver_discord_to_mesh(self, msg: BridgeMessage) -> None:
         """Send a Discord message to mesh."""
@@ -1086,8 +1153,6 @@ class MeshBridge:
                 if not msg.sender.display or msg.sender.display == "unknown":
                     msg.sender.display = msg.sender.key_prefix or msg.sender.display
 
-        self._annotate_recent_packet_reuse(msg)
-
         if msg.path.direct:
             msg.rf.reachability = "direct"
         elif msg.path.repeated:
@@ -1096,6 +1161,7 @@ class MeshBridge:
             msg.rf.reachability = "unknown"
 
         msg.rf.raw = dict(payload)
+        self._annotate_recent_packet_reuse(msg)
 
         rf_log.debug(
             "Built mesh message: sender=%r key=%r key_prefix=%r text=%r event=%s",

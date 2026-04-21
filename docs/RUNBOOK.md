@@ -31,6 +31,19 @@ Caveat:
 - when the companion is co-sited with the repeater, that is usually a good proxy for the repeater's local RF neighborhood
 - it is not a perfect substitute for a remote repeater-internal neighbor table
 
+## Scheduled adverts
+Set `auto_advert_interval_hours` to a positive number to send adverts on a timer:
+
+```hjson
+auto_advert_interval_hours: 6
+auto_advert_flood: false
+```
+
+The default value `0` disables scheduled adverts. The timer waits one full
+interval after startup before sending, so restarting the bridge does not
+immediately send an advert. Use `auto_advert_flood: true` only when you
+intentionally want the scheduled advert to be a flood advert.
+
 ## Packet path summary commands
 You can inspect recent observed propagation paths with:
 
@@ -100,6 +113,14 @@ It should merge into a keyed record later when advert/contact/path data arrives 
 
 Recent builds also trust advert-carried identity fields such as `adv_key`, so a
 node that is repeatedly advertising with a key should stop appearing as provisional.
+
+## If someone is clearly chatting but does not show up in `/nodes`
+Use `/chatters`.
+
+`/nodes` and `/neighbors` are neighbor-table views, so they depend on keyed
+identity and cached RF state. `/chatters` is history-backed instead and shows
+recent mesh channel senders even when the bridge only knows their on-air name
+from `CHANNEL_MSG_RECV`.
 
 ## If RF fields stay `None`
 Check `RFONLY` logs for:
