@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import time
 import uuid
+from collections import OrderedDict
 
 import discord
 from discord import app_commands
@@ -189,6 +190,7 @@ class MeshBridgeBot(commands.Bot):
         )
         self.config = config
         self.bridge = bridge
+        self._seen_discord_message_ids: OrderedDict[int, int] = OrderedDict()
 
     async def setup_hook(self) -> None:
         """Initialize background bridge tasks and sync slash commands."""
@@ -225,6 +227,16 @@ class MeshBridgeBot(commands.Bot):
         if route is None:
             return
 
+        now = int(time.time())
+        if message.id in self._seen_discord_message_ids:
+            log.info("Skipping duplicate Discord message id=%s channel=%s", message.id, message.channel.id)
+            return
+
+        self._seen_discord_message_ids[message.id] = now
+        self._seen_discord_message_ids.move_to_end(message.id)
+        while len(self._seen_discord_message_ids) > 500:
+            self._seen_discord_message_ids.popitem(last=False)
+
         parts: list[str] = []
         if message.content and message.content.strip():
             parts.append(message.content.strip())
@@ -242,7 +254,7 @@ class MeshBridgeBot(commands.Bot):
             message_id=str(uuid.uuid4()),
             source="discord",
             kind="channel",
-            created_at=int(time.time()),
+            created_at=now,
             text=text,
         )
         msg.sender.name = sender_name

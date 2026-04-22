@@ -68,12 +68,17 @@ async def async_main() -> int:
     log = logging.getLogger(__name__)
 
     if args.check_config:
+        mesh_endpoint = (
+            f"serial:{config.serial_port}@{config.baud_rate}"
+            if config.mesh_connection_type == "serial"
+            else f"tcp:{config.tcp_host}:{config.tcp_port}"
+        )
         log.info(
-            "Config OK: routes=%s mesh_dm_channel_id=%s mesh_dm_user_id=%s serial_port=%s log_modes=%s",
+            "Config OK: routes=%s mesh_dm_channel_id=%s mesh_dm_user_id=%s mesh_endpoint=%s log_modes=%s",
             len(config.routes),
             config.mesh_dm_channel_id,
             config.mesh_dm_user_id,
-            config.serial_port,
+            mesh_endpoint,
             config.log_modes,
         )
         return 0

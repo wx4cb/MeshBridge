@@ -313,7 +313,13 @@ class MeshBridge:
             fixed_avatar_url=config.meshcore_avatar_url,
         )
 
-        self.mesh = MeshAdapter(config.serial_port, config.baud_rate)
+        self.mesh = MeshAdapter(
+            connection_type=config.mesh_connection_type,
+            serial_port=config.serial_port,
+            baud_rate=config.baud_rate,
+            tcp_host=config.tcp_host,
+            tcp_port=config.tcp_port,
+        )
         self.mesh.set_callback(self.handle_mesh_event)
 
         self.discord_to_mesh_queue: asyncio.Queue[BridgeMessage] = asyncio.Queue()
@@ -805,9 +811,10 @@ class MeshBridge:
             key_prefix=None,
         )
         traffic_log.info(
-            "Discord -> Mesh route=%s sender=%s text=%r",
+            "Discord -> Mesh route=%s sender=%s discord_message_id=%s text=%r",
             msg.route.route_name,
             resolve_sender_display(msg),
+            msg.metadata.get("discord_message_id"),
             msg.text,
         )
 

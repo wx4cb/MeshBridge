@@ -7,18 +7,30 @@ the project can remain stable even if the local MeshCore Python APIs differ.
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any, Awaitable, Callable
 
 
 MeshEventCallback = Callable[[str, dict[str, Any]], Awaitable[None]]
+log = logging.getLogger("meshbridge.system")
 
 
 class MeshAdapter:
     """Thin wrapper around the MeshCore Python library."""
 
-    def __init__(self, serial_port: str, baud_rate: int) -> None:
+    def __init__(
+        self,
+        connection_type: str,
+        serial_port: str,
+        baud_rate: int,
+        tcp_host: str,
+        tcp_port: int,
+    ) -> None:
+        self.connection_type = connection_type
         self.serial_port = serial_port
         self.baud_rate = baud_rate
+        self.tcp_host = tcp_host
+        self.tcp_port = tcp_port
         self._client: Any = None
         self._callback: MeshEventCallback | None = None
 
@@ -30,7 +42,21 @@ class MeshAdapter:
             raise RuntimeError("MeshCore package is not installed or import failed") from exc
 
         self._event_type = EventType
-        self._client = await MeshCore.create_serial(self.serial_port, self.baud_rate)
+        if self.connection_type == "serial":
+            if not self.serial_port:
+                raise RuntimeError("serial_port is required when mesh_connection_type is serial")
+            log.info("Connecting to MeshCore over serial port=%s baud_rate=%s", self.serial_port, self.baud_rate)
+            self._client = await MeshCore.create_serial(self.serial_port, self.baud_rate)
+        elif self.connection_type == "tcp":
+            if not hasattr(MeshCore, "create_tcp"):
+                raise RuntimeError("MeshCore TCP connection helper is unavailable")
+            log.info("Connecting to MeshCore over TCP host=%s port=%s", self.tcp_host, self.tcp_port)
+            self._client = await MeshCore.create_tcp(self.tcp_host, self.tcp_port)
+        else:
+            raise RuntimeError(f"Unsupported mesh_connection_type: {self.connection_type}")
+
+        if self._client is None:
+            raise RuntimeError("MeshCore connection failed")
 
         if hasattr(self._client, "start_auto_message_fetching"):
             await self._client.start_auto_message_fetching()

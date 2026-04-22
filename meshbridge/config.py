@@ -116,8 +116,11 @@ class AppConfig:
     # ---------------------------------------------------------------------
     # MeshCore connection settings
     # ---------------------------------------------------------------------
+    mesh_connection_type: str
     serial_port: str
     baud_rate: int
+    tcp_host: str
+    tcp_port: int
 
     # ---------------------------------------------------------------------
     # Logging settings
@@ -182,6 +185,11 @@ class AppConfig:
             Parsed application config.
         """
         raw = hjson.loads(path.read_text(encoding="utf-8"))
+        mesh_connection_type = str(raw.get("mesh_connection_type", "serial")).strip().lower()
+        if mesh_connection_type == "pymc":
+            mesh_connection_type = "tcp"
+        if mesh_connection_type not in {"serial", "tcp"}:
+            raise ValueError("mesh_connection_type must be 'serial', 'tcp', or 'pymc'")
 
         routes = [
             Route(
@@ -207,8 +215,11 @@ class AppConfig:
             # -------------------------------------------------------------
             # MeshCore connection settings
             # -------------------------------------------------------------
-            serial_port=str(raw["serial_port"]).strip(),
+            mesh_connection_type=mesh_connection_type,
+            serial_port=str(raw.get("serial_port", "")).strip(),
             baud_rate=int(raw.get("baud_rate", 115200)),
+            tcp_host=str(raw.get("tcp_host", "127.0.0.1")).strip(),
+            tcp_port=int(raw.get("tcp_port", 5000)),
 
             # -------------------------------------------------------------
             # Logging

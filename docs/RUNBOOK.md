@@ -10,6 +10,26 @@ python3 main.py --config config.hjson
 python3 main.py --config config.hjson --check-config
 ```
 
+## MeshCore connection
+MeshBridge can connect either to a local serial companion or to a TCP endpoint
+such as pymc.
+
+Serial mode:
+
+```hjson
+mesh_connection_type: "serial"
+serial_port: "/dev/ttyACM0"
+baud_rate: 115200
+```
+
+TCP mode:
+
+```hjson
+mesh_connection_type: "tcp"
+tcp_host: "127.0.0.1"
+tcp_port: 5000
+```
+
 ## Mesh discover command
 You can send a MeshCore discover request from Discord with:
 
@@ -194,8 +214,9 @@ If the logs show the correct mapping but Discord output does not:
 ## If reconnects keep happening
 Check:
 
-- `serial_port`
-- serial permissions
+- `mesh_connection_type`
+- `serial_port` and serial permissions when using serial mode
+- `tcp_host` and `tcp_port` when using TCP mode
 - whether the MeshCore Python package is installed correctly
 - whether your adapter methods match the local MeshCore API
 

@@ -199,12 +199,28 @@ WX4CB T250
 
 The code assumes a MeshCore Python environment with async event handling and high-level functions for:
 
-- connecting to a serial/TCP source
+- connecting to a serial companion or TCP endpoint
 - sending channel messages
 - sending adverts
 - receiving channel messages
 - receiving direct/contact messages
 - receiving path/trace/advert events
+
+Serial mode is the default:
+
+```hjson
+mesh_connection_type: "serial"
+serial_port: "/dev/ttyACM0"
+baud_rate: 115200
+```
+
+TCP mode can be used for a pymc-style endpoint:
+
+```hjson
+mesh_connection_type: "tcp"
+tcp_host: "127.0.0.1"
+tcp_port: 5000
+```
 
 If your installed MeshCore library names differ slightly, edit only:
 

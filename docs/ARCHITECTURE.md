@@ -46,7 +46,7 @@ This avoids the unclosed-client-session warnings that can happen when async reso
 - `meshbridge/logging_setup.py`: category-aware logging setup
 - `meshbridge/bot.py`: Discord ingress plus slash command surface
 - `meshbridge/bridge.py`: routing, queues, delivery, RF correlation, and reconnection
-- `meshbridge/mesh_adapter.py`: MeshCore integration wrapper
+- `meshbridge/mesh_adapter.py`: MeshCore integration wrapper for serial or TCP transports
 - `meshbridge/neighbor_store.py`: in-memory neighbor tracking plus compact persistence
 - `meshbridge/history.py`: bounded recent bridge message store
 - `meshbridge/memory_store.py`: bounded recent unhandled-event store
