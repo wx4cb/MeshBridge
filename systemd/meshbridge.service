@@ -6,7 +6,7 @@ After=network.target
 Type=simple
 User=REPLACE_ME
 WorkingDirectory=/opt/MeshBridge
-ExecStart=/usr/bin/python3 /opt/MeshBridge/main.py --config /opt/MeshBridge/config.json --log-level INFO
+ExecStart=/usr/bin/python3 /opt/MeshBridge/main.py --config /opt/MeshBridge/config.hjson --log-level INFO
 Restart=always
 RestartSec=5
 

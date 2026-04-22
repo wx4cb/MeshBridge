@@ -9,6 +9,9 @@ A Discord ↔ MeshCore bridge focused on:
 - RF/path-aware message objects
 - neighbor tracking with lightweight persistence
 - bounded in-memory history
+- recent mesh chatter and packet path inspection commands
+- configurable serial or TCP MeshCore transport
+- optional scheduled adverts
 - simple reconnect logic
 - Google-style docstrings for future documentation generation
 
@@ -59,7 +62,6 @@ For commercial licensing, please contact the author.
 MeshBridge/
 ├── LICENSE
 ├── README.md
-├── config.example.json
 ├── requirements.txt
 ├── requirements-dev.txt
 ├── main.py
@@ -68,6 +70,11 @@ MeshBridge/
 │   └── meshbridge.service
 ├── docs/
 │   ├── conf.py
+│   ├── sample.config.hjson
+│   ├── COMMANDS.md
+│   ├── ARCHITECTURE.md
+│   ├── LOGGING.md
+│   ├── RUNBOOK.md
 │   ├── index.rst
 │   ├── modules.rst
 │   └── usage.rst
@@ -92,26 +99,57 @@ MeshBridge/
 
 ## Configuration
 
-Copy `config.example.json` to `config.json` and fill in your values.
+Copy `docs/sample.config.hjson` to `config.hjson` and fill in your values.
+
+HJSON is used so the config can keep comments while still loading as structured data.
 
 ### Route model
 
 Routes are defined once:
 
-```json
-{
-  "routes": [
-    {
-      "name": "public",
-      "mesh_channel": 0,
-      "discord_channel_id": 123456789012345678,
-      "webhook_url": "https://discord.com/api/webhooks/..."
-    }
-  ]
-}
+```hjson
+routes: [
+  {
+    name: "public"
+    mesh_channel: 0
+    discord_channel_id: 123456789012345678
+    webhook_url: "https://discord.com/api/webhooks/..."
+  }
+]
 ```
 
 The bridge derives both lookup directions internally.
+
+### MeshCore connection
+
+Serial mode connects to a local serial companion:
+
+```hjson
+mesh_connection_type: "serial"
+serial_port: "/dev/ttyACM0"
+baud_rate: 115200
+```
+
+TCP mode connects to a pymc-style TCP endpoint:
+
+```hjson
+mesh_connection_type: "tcp"
+tcp_host: "127.0.0.1"
+tcp_port: 5000
+```
+
+`mesh_connection_type: "pymc"` is accepted as an alias for TCP.
+
+### Scheduled adverts
+
+Scheduled adverts are disabled by default:
+
+```hjson
+auto_advert_interval_hours: 0
+auto_advert_flood: false
+```
+
+Set `auto_advert_interval_hours` to a positive number to send one advert every N hours.
 
 ### Mesh DM room
 
@@ -123,27 +161,30 @@ Set `mesh_dm_channel_id` to a private Discord room ID to receive one-way MeshCor
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp config.example.json config.json
-python3 main.py --config config.json --log-level DEBUG
+cp docs/sample.config.hjson config.hjson
+python3 main.py --config config.hjson --check-config
+python3 main.py --config config.hjson --log-level DEBUG
 ```
 
 ## Run manually
 
 ```bash
-python3 main.py --config config.json --log-level DEBUG
+python3 main.py --config config.hjson --log-level DEBUG
 ```
 
 ## Validate config only
 
 ```bash
-python3 main.py --config config.json --check-config
+python3 main.py --config config.hjson --check-config
 ```
+
+The validation output includes the active MeshCore endpoint, such as `serial:/dev/ttyACM0@115200` or `tcp:127.0.0.1:5000`.
 
 ## Run with systemd
 
 An example service file is included at `systemd/meshbridge.service`.
 
-Copy it into place and adjust paths:
+Copy it into place and adjust paths, user, and config location:
 
 ```bash
 sudo cp systemd/meshbridge.service /etc/systemd/system/meshbridge.service
@@ -227,6 +268,18 @@ If your installed MeshCore library names differ slightly, edit only:
 - `meshbridge/mesh_adapter.py`
 
 The rest of the project should remain stable.
+
+## Operator commands
+
+The full Discord slash-command reference lives in `docs/COMMANDS.md`.
+
+Useful bring-up commands:
+
+- `/bridge status` shows bridge status and process stats.
+- `/mesh advert [flood]` sends a manual advert.
+- `/mesh packets` and `/mesh packet <pkt_hash>` inspect recent observed RF packet paths.
+- `/chatters` lists recent mesh channel senders from in-memory message history.
+- `/neighbors list` and `/nodes list` inspect known neighbor identity and RF state.
 
 ## Docs generation
 

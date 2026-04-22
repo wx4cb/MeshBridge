@@ -12,6 +12,27 @@ Quick start:
 2. Fill in Discord, MeshCore, and route settings.
 3. Run ``python3 main.py --config config.hjson``.
 
+MeshCore connection
+-------------------
+
+Serial mode is the default and connects to a local serial companion:
+
+.. code-block:: hjson
+
+   mesh_connection_type: "serial"
+   serial_port: "/dev/ttyACM0"
+   baud_rate: 115200
+
+TCP mode connects to a pymc-style endpoint:
+
+.. code-block:: hjson
+
+   mesh_connection_type: "tcp"
+   tcp_host: "127.0.0.1"
+   tcp_port: 5000
+
+``mesh_connection_type: "pymc"`` is accepted as an alias for TCP.
+
 Validation
 ----------
 
@@ -20,6 +41,8 @@ Validate configuration without starting the bot:
 .. code-block:: bash
 
    python3 main.py --config config.hjson --check-config
+
+The validation log includes the active endpoint, for example ``serial:/dev/ttyACM0@115200`` or ``tcp:127.0.0.1:5000``.
 
 Logging
 -------
@@ -49,6 +72,29 @@ Mesh direct messages do not use route webhooks. They are delivered to:
 
 1. ``mesh_dm_user_id`` if configured
 2. otherwise ``mesh_dm_channel_id``
+
+Scheduled adverts
+-----------------
+
+Scheduled adverts are disabled by default:
+
+.. code-block:: hjson
+
+   auto_advert_interval_hours: 0
+   auto_advert_flood: false
+
+Set ``auto_advert_interval_hours`` to a positive number to send one advert every N hours. The first scheduled advert waits one full interval after startup.
+
+Operator commands
+-----------------
+
+Common slash commands:
+
+- ``/bridge status`` shows bridge health and process stats.
+- ``/mesh advert [flood]`` sends a manual advert.
+- ``/mesh packets`` summarizes recent observed packet paths.
+- ``/chatters`` lists recent mesh channel senders from in-memory history.
+- ``/neighbors list`` and ``/nodes list`` inspect known node state.
 
 Shutdown
 --------
