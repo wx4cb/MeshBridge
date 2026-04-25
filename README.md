@@ -10,6 +10,7 @@ A Discord ↔ MeshCore bridge focused on:
 - neighbor tracking with lightweight persistence
 - bounded in-memory history
 - recent mesh chatter and packet path inspection commands
+- live channel table and unknown-channel diagnostics
 - configurable serial or TCP MeshCore transport
 - optional scheduled adverts
 - simple reconnect logic
@@ -155,6 +156,22 @@ Set `auto_advert_interval_hours` to a positive number to send one advert every N
 
 Set `mesh_dm_channel_id` to a private Discord room ID to receive one-way MeshCore DMs.
 
+### Channel diagnostics
+
+On connect, the bridge now fetches `CHANNEL_INFO` from MeshCore, keeps a live
+channel table, and compares raw `GRP_TXT` RF traffic against the currently known
+channel hashes.
+
+Use `/channels` to see:
+
+- the live channel list reported by the connected node
+- which configured route is bound to each mesh channel index
+- repeated unknown group-text hashes the bridge has heard
+
+This is especially useful when switching between different backends, because a
+USB serial companion and a TCP/pymc endpoint do not necessarily expose the same
+live channel order.
+
 ## Install
 
 ```bash
@@ -179,6 +196,10 @@ python3 main.py --config config.hjson --check-config
 ```
 
 The validation output includes the active MeshCore endpoint, such as `serial:/dev/ttyACM0@115200` or `tcp:127.0.0.1:5000`.
+
+If the connected node's live channel order does not match your assumptions, use
+`/channels` after startup and update the `mesh_channel` values in `config.hjson`
+to match that specific node.
 
 ## Run with systemd
 

@@ -30,6 +30,25 @@ tcp_host: "127.0.0.1"
 tcp_port: 5000
 ```
 
+After switching between TCP and a USB serial companion, start the bridge and
+run `/channels` once before trusting the route mappings. Different connected
+nodes can expose different live channel orders even when they share similar
+channel names.
+
+## Channel diagnostics
+The bridge now fetches live `CHANNEL_INFO` from MeshCore on connect and keeps a
+small in-memory channel table for operator inspection.
+
+Use `/channels` to verify:
+
+- which live device channels exist on the currently connected node
+- which configured route is bound to each `mesh_channel` index
+- which repeated `GRP_TXT` channel hashes are still unknown to the bridge
+
+If the route names in Discord do not line up with the device-reported channel
+names, update the `mesh_channel` values in `config.hjson` to match that
+specific companion or TCP endpoint.
+
 ## Mesh discover command
 You can send a MeshCore discover request from Discord with:
 
@@ -153,6 +172,22 @@ Check `RFONLY` logs for:
 - `Applied pending RF sample to CHANNEL_MSG_RECV`
 
 Not every MeshCore environment emits the same RF metadata in the same shape, so some adapter-specific tuning may still be needed in `meshbridge/mesh_adapter.py`.
+
+## If raw `GRP_TXT` packets show up but Discord misses the message
+Check the RF log for warnings like:
+
+- `group-text hash=81 is unknown to the bridge`
+
+That means the bridge heard encrypted group-text RF traffic, but the currently
+connected MeshCore session does not know that short channel hash from its live
+`CHANNEL_INFO` table. In practice that usually means:
+
+- the connected node is missing that channel key
+- you are connected to a different companion than the one you expected
+- the route/channel indices in `config.hjson` are out of sync with the live node
+
+Use `/channels` to compare the connected node's live channels against your
+configured routes before assuming the forwarding logic is at fault.
 
 ## Reading RF logs
 With current decoding, RF logs may now include extra details on `RAW_DATA` and `RX_LOG_DATA` lines such as:

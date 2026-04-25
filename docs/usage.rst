@@ -65,6 +65,21 @@ Each route maps:
 Discord messages from a configured route channel are forwarded to the route's Mesh channel.
 Mesh channel traffic from that Mesh channel is forwarded to Discord through the route webhook.
 
+Live channel diagnostics
+------------------------
+
+Recent builds fetch ``CHANNEL_INFO`` from the connected MeshCore node during
+startup and keep a live channel table in memory.
+
+Use ``/channels`` to inspect:
+
+- the live channel list reported by the connected node
+- the configured route bound to each channel index
+- repeated unknown ``GRP_TXT`` channel hashes heard over RF
+
+This is important when moving between a USB serial companion and a TCP/pymc
+endpoint, because the live mesh channel order can differ between nodes.
+
 Mesh direct messages
 --------------------
 
@@ -93,6 +108,7 @@ Common slash commands:
 - ``/bridge status`` shows bridge health and process stats.
 - ``/mesh advert [flood]`` sends a manual advert.
 - ``/mesh packets`` summarizes recent observed packet paths.
+- ``/channels`` shows live device channels, route bindings, and unknown group hashes.
 - ``/chatters`` lists recent mesh channel senders from in-memory history.
 - ``/neighbors list`` and ``/nodes list`` inspect known node state.
 

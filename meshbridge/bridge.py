@@ -331,6 +331,9 @@ class MeshBridge:
         self._pending_rf_samples: list[dict[str, Any]] = []
         self._recent_pkt_hashes: dict[int, dict[str, Any]] = {}
         self._recent_packet_history: dict[int, dict[str, Any]] = {}
+        self._channel_debug_info: dict[int, dict[str, Any]] = {}
+        self._unknown_group_hash_counts: dict[str, int] = {}
+        self._unknown_group_hash_last_seen: dict[str, int] = {}
         self._dm_user = None
         self._dm_channel = None
 
@@ -376,6 +379,7 @@ class MeshBridge:
                 self.state.mesh_connected = True
                 self.state.reconnect_count += 1
                 system_log.info("Connected to MeshCore")
+                await self._refresh_channel_debug_info()
 
                 delay = self.config.reconnect_initial_delay_seconds
 
@@ -520,6 +524,154 @@ class MeshBridge:
                 system_log.info("Sent scheduled advert: flood=%s", flood)
             except Exception as exc:
                 system_log.exception("Scheduled advert failed: %s", exc)
+
+    async def _refresh_channel_debug_info(self) -> None:
+        """Load channel definitions so raw RF log hashes can be diagnosed."""
+        decrypt_enabled = self.mesh.set_decrypt_channel_logs(True)
+        system_log.info("Mesh channel-log decryption supported=%s", decrypt_enabled)
+
+        # MeshCore's packet parser tracks 40 channel slots by default. Scan the
+        # whole range so we can tell whether an unknown RF channel hash exists on
+        # the device but simply is not part of a routed bridge mapping.
+        channel_indices = list(range(40))
+
+        refreshed: dict[int, dict[str, Any]] = {}
+        for channel_idx in channel_indices:
+            try:
+                info = await self.mesh.get_channel_info(channel_idx)
+            except Exception as exc:
+                system_log.warning("Failed to fetch channel info for channel=%s: %s", channel_idx, exc)
+                continue
+
+            if not info:
+                continue
+
+            channel_hash = str(info.get("channel_hash") or "").lower() or None
+            channel_name = str(info.get("channel_name") or "").strip() or None
+            refreshed[channel_idx] = {
+                "channel_idx": channel_idx,
+                "channel_hash": channel_hash,
+                "channel_name": channel_name,
+                "routed": channel_idx in self.routes_by_mesh,
+            }
+            rf_log.info(
+                "Channel info loaded: channel=%s hash=%s name=%s routed=%s",
+                channel_idx,
+                channel_hash,
+                channel_name,
+                channel_idx in self.routes_by_mesh,
+            )
+
+        self._channel_debug_info = refreshed
+        known_hashes = self._format_known_channel_hashes()
+        if known_hashes != "none":
+            rf_log.info("Known bridge channel hashes: %s", known_hashes)
+        self._log_configured_route_channel_mappings()
+
+        placeholder_count = len(
+            [info for info in self._channel_debug_info.values() if not self._is_meaningful_channel_info(info)]
+        )
+        if placeholder_count:
+            rf_log.info("Ignored placeholder/empty channel slots: %s", placeholder_count)
+        rf_log.info("Channel scan complete: found=%s scanned=%s", len(refreshed), len(channel_indices))
+
+    def _is_meaningful_channel_info(self, info: dict[str, Any]) -> bool:
+        """Return True when a channel slot looks intentionally configured."""
+        if info.get("routed"):
+            return True
+        if info.get("channel_name"):
+            return True
+
+        channel_hash = str(info.get("channel_hash") or "")
+        if not channel_hash:
+            return False
+
+        duplicate_count = sum(
+            1
+            for candidate in self._channel_debug_info.values()
+            if str(candidate.get("channel_hash") or "") == channel_hash
+        )
+        return duplicate_count == 1
+
+    def _format_known_channel_hashes(self) -> str:
+        """Format configured channel hashes for one-line diagnostics."""
+        if not self._channel_debug_info:
+            return "none"
+
+        return ", ".join(
+            (
+                f"{channel_idx}:{info.get('channel_hash') or '?'}"
+                if not info.get("channel_name")
+                else f"{channel_idx}:{info.get('channel_hash') or '?'}:{info.get('channel_name')}"
+            )
+            for channel_idx, info in sorted(self._channel_debug_info.items())
+            if self._is_meaningful_channel_info(info)
+        )
+
+    def _log_configured_route_channel_mappings(self) -> None:
+        """Log the configured route names alongside the device's actual channel info."""
+        for route in self.config.routes:
+            info = self._channel_debug_info.get(route.mesh_channel)
+            if info is None:
+                rf_log.warning(
+                    "Configured route mapping: route=%s mesh_channel=%s device_channel=missing",
+                    route.name,
+                    route.mesh_channel,
+                )
+                continue
+
+            device_name = info.get("channel_name")
+            device_hash = info.get("channel_hash")
+            rf_log.info(
+                "Configured route mapping: route=%s mesh_channel=%s device_name=%s device_hash=%s",
+                route.name,
+                route.mesh_channel,
+                device_name,
+                device_hash,
+            )
+
+    def record_unknown_group_hash(self, chan_hash: str, seen_at: int) -> None:
+        """Track repeated RF group-text hashes that do not match known channels."""
+        key = str(chan_hash).strip().lower()
+        if not key:
+            return
+
+        self._unknown_group_hash_counts[key] = self._unknown_group_hash_counts.get(key, 0) + 1
+        self._unknown_group_hash_last_seen[key] = seen_at
+
+    def list_known_channels(self) -> list[dict[str, Any]]:
+        """Return meaningful known device channels ordered by index."""
+        rows: list[dict[str, Any]] = []
+        for channel_idx, info in sorted(self._channel_debug_info.items()):
+            if not self._is_meaningful_channel_info(info):
+                continue
+
+            route = self.routes_by_mesh.get(channel_idx)
+            rows.append(
+                {
+                    "channel_idx": channel_idx,
+                    "channel_hash": info.get("channel_hash"),
+                    "channel_name": info.get("channel_name"),
+                    "routed": bool(info.get("routed")),
+                    "route_name": route.name if route else None,
+                    "discord_channel_id": route.discord_channel_id if route else None,
+                }
+            )
+
+        return rows
+
+    def list_unknown_group_hashes(self, limit: int = 10) -> list[dict[str, Any]]:
+        """Return recently seen unknown group-text channel hashes."""
+        rows = [
+            {
+                "chan_hash": chan_hash,
+                "count": count,
+                "last_seen": self._unknown_group_hash_last_seen.get(chan_hash, 0),
+            }
+            for chan_hash, count in self._unknown_group_hash_counts.items()
+        ]
+        rows.sort(key=lambda item: (item["last_seen"], item["count"]), reverse=True)
+        return rows[:limit]
 
     def _store_pending_rf_sample(self, msg: BridgeMessage) -> None:
         """Store an anonymous RF sample for later correlation."""
@@ -956,6 +1108,27 @@ class MeshBridge:
         """Handle one MeshCore event."""
         now = int(time.time())
 
+        if event_name == "CHANNEL_INFO":
+            channel_idx = _coerce_int(payload.get("channel_idx"))
+            channel_hash = str(payload.get("channel_hash") or "").lower() or None
+            channel_name = str(payload.get("channel_name") or "").strip() or None
+            if channel_idx is not None:
+                previous = self._channel_debug_info.get(channel_idx, {})
+                self._channel_debug_info[channel_idx] = {
+                    "channel_idx": channel_idx,
+                    "channel_hash": channel_hash,
+                    "channel_name": channel_name,
+                    "routed": bool(previous.get("routed")) or channel_idx in self.routes_by_mesh,
+                }
+                rf_log.info(
+                    "CHANNEL_INFO channel=%s hash=%s name=%s known_hashes=%s",
+                    channel_idx,
+                    channel_hash,
+                    channel_name,
+                    self._format_known_channel_hashes(),
+                )
+            return
+
         if event_name == "CHANNEL_MSG_RECV":
             msg = self._build_message_from_mesh_payload(now, event_name, payload, kind="channel")
 
@@ -1186,5 +1359,38 @@ class MeshBridge:
             rf_log.debug("%s raw payload: %r", event_name, payload)
             if control_info:
                 rf_log.debug("%s decoded control payload: %r", event_name, control_info)
+            elif str(payload.get("payload_typename") or "").upper() == "GRP_TXT":
+                chan_hash = str(payload.get("chan_hash") or "").lower() or None
+                if chan_hash:
+                    matched = next(
+                        (
+                            info for info in self._channel_debug_info.values()
+                            if str(info.get("channel_hash") or "").lower() == chan_hash
+                        ),
+                        None,
+                    )
+                    if matched:
+                        msg.metadata["channel_hash_match"] = matched.get("channel_idx")
+                        msg.metadata["channel_name_match"] = matched.get("channel_name")
+                        rf_log.info(
+                            "%s group-text matched configured channel=%s hash=%s name=%s",
+                            event_name,
+                            matched.get("channel_idx"),
+                            chan_hash,
+                            matched.get("channel_name"),
+                        )
+                    else:
+                        self.record_unknown_group_hash(chan_hash, now)
+                        summary = ", ".join(
+                            f"{row['chan_hash']}={row['count']}"
+                            for row in self.list_unknown_group_hashes(limit=5)
+                        ) or "none"
+                        rf_log.warning(
+                            "%s group-text hash=%s is unknown to the bridge; known_hashes=%s unknown_hash_counts=%s",
+                            event_name,
+                            chan_hash,
+                            self._format_known_channel_hashes(),
+                            summary,
+                        )
 
         return msg

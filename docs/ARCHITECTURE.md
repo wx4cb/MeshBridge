@@ -20,6 +20,7 @@ The bridge keeps Discord-facing behavior intentionally simple:
 ### Startup
 - `main.py` parses CLI arguments, loads HJSON config, initializes logging, builds the bridge and bot, and starts the Discord client.
 - `MeshBridgeBot.setup_hook()` starts bridge background tasks before syncing slash commands to the configured guild.
+- `mesh_connection_loop()` now fetches live `CHANNEL_INFO` from MeshCore after connect so the bridge can compare route bindings and raw group-text hashes against the connected node's actual channel table.
 
 ### Background tasks
 `meshbridge.bridge.MeshBridge` owns three long-lived background loops:
@@ -65,6 +66,11 @@ This avoids the unclosed-client-session warnings that can happen when async reso
 2. The bridge updates neighbor state and correlates RF metadata when possible.
 3. Channel messages are enqueued to `mesh_to_discord_worker()`.
 4. The worker rate-limits by route and sends through the cached webhook sender.
+
+When MeshCore only surfaces low-level `GRP_TXT` RF payloads without a matching
+`CHANNEL_MSG_RECV`, the bridge logs whether the short channel hash matches any
+currently known channel from the live `CHANNEL_INFO` table. Unknown hashes are
+counted in memory for operator review.
 
 ### Mesh -> Discord direct messages
 Mesh direct messages do not use route webhooks. They are formatted as plain text and sent to:
@@ -114,6 +120,27 @@ MeshCore can surface related information across separate events:
 To bridge those pieces together, the bridge stores a short rolling window of anonymous RF samples and applies the most recent matching sample to a later named message when timestamps line up.
 
 The bridge marks these inferred values with `rf_source=pending_rf_correlation` so logs and future tooling can distinguish correlated telemetry from telemetry carried directly on the message event itself.
+
+## Channel diagnostics model
+The bridge keeps a live channel table keyed by MeshCore channel index.
+
+Each entry may include:
+
+- `channel_idx`
+- `channel_hash`
+- `channel_name`
+- whether the channel is currently routed by `config.hjson`
+
+This table comes from `CHANNEL_INFO` events plus explicit `get_channel(...)`
+queries during connect. It is used to:
+
+- log startup route-to-channel mappings
+- compare raw `GRP_TXT` hashes against known channels
+- expose `/channels` for Discord-side operator debugging
+
+This matters because different connected nodes can present different live
+channel orders. A USB serial companion and a TCP/pymc endpoint should not be
+assumed to share the same channel index layout.
 
 ## Control-frame decoding
 For `RAW_DATA` and `RX_LOG_DATA`, the bridge also inspects unencrypted MeshCore `CONTROL` payloads when enough packet bytes are present.

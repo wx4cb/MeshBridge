@@ -71,6 +71,7 @@ class MeshAdapter:
         candidates = [
             "CHANNEL_MSG_RECV",
             "CONTACT_MSG_RECV",
+            "CHANNEL_INFO",
             "ADVERTISEMENT",
             "PATH_UPDATE",
             "PATH_RESPONSE",
@@ -131,6 +132,18 @@ class MeshAdapter:
         """Set the bridge event callback."""
         self._callback = callback
 
+    def set_decrypt_channel_logs(self, enabled: bool) -> bool:
+        """Enable or disable parser-side channel log decryption when supported."""
+        if self._client is None:
+            return False
+
+        setter = getattr(self._client, "set_decrypt_channel_logs", None)
+        if not callable(setter):
+            return False
+
+        setter(enabled)
+        return True
+
     async def send_channel_text(self, channel_idx: int, text: str) -> None:
         """Send one channel message."""
         if self._client is None:
@@ -141,6 +154,28 @@ class MeshAdapter:
             raise RuntimeError("MeshCore send_chan_msg command is unavailable")
 
         await commands.send_chan_msg(channel_idx, text)
+
+    async def get_channel_info(self, channel_idx: int) -> dict[str, Any] | None:
+        """Fetch one channel definition from MeshCore when the API supports it."""
+        if self._client is None:
+            raise RuntimeError("MeshAdapter is not connected")
+
+        commands = getattr(self._client, "commands", None)
+        if commands is None or not hasattr(commands, "get_channel"):
+            return None
+
+        result = await commands.get_channel(channel_idx)
+        event_type = getattr(result, "type", None)
+        event_name = getattr(event_type, "name", "")
+
+        if event_name == "ERROR":
+            return None
+
+        payload = getattr(result, "payload", None)
+        if isinstance(payload, dict):
+            return payload
+
+        return None
 
     async def send_advert(self, flood: bool = False) -> None:
         """Send an advert."""

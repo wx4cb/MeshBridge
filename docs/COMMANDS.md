@@ -14,6 +14,12 @@
 - `/mesh packets` shows recent observed packet propagation summaries keyed by `pkt_hash`.
 - `/mesh packet <pkt_hash>` shows one packet's observed propagation history from recent RF sightings.
 
+## `/channels`
+- `/channels` shows the live `CHANNEL_INFO` table reported by the connected MeshCore node.
+- It also shows which configured route is bound to each mesh channel index.
+- Repeated unknown `GRP_TXT` channel hashes are summarized with counts and last-seen ages.
+- This is the quickest way to verify route/channel alignment after switching between TCP and serial companions.
+
 ## `/chatters`
 - `/chatters` shows recent mesh channel senders from in-memory message history.
 - This command is useful when a node is actively talking on-channel but has not produced enough keyed advert/contact traffic to appear clearly in `/nodes` or `/neighbors`.
@@ -57,3 +63,4 @@ Behavior:
 - All bridged output is plain text only.
 - Allowed mentions are disabled for bridged Discord sends.
 - Discord operator views prefer 4-byte node prefixes (`8` hex chars) rather than full public keys.
+- `/channels` reflects the bridge-connected node's live MeshCore state. It does not read a separate phone app's saved channel settings.

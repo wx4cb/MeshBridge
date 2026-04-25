@@ -197,6 +197,7 @@ class MeshBridgeBot(commands.Bot):
         await self.bridge.start()
         self.tree.add_command(self._build_bridge_group())
         self.tree.add_command(self._build_mesh_group())
+        self.tree.add_command(self._build_channels_command())
         self.tree.add_command(self._build_chatters_command())
         self.tree.add_command(self._build_neighbors_group())
         self.tree.add_command(self._build_nodes_group())
@@ -391,9 +392,11 @@ class MeshBridgeBot(commands.Bot):
                 await interaction.response.send_message("You do not have permission.", ephemeral=True)
                 return
 
+            await interaction.response.defer(ephemeral=True)
+
             rows = self.bridge.list_recent_packet_paths(limit=10)
             if not rows:
-                await interaction.response.send_message("No recent packet observations yet.", ephemeral=True)
+                await interaction.edit_original_response(content="No recent packet observations yet.")
                 return
 
             lines = []
@@ -408,7 +411,7 @@ class MeshBridgeBot(commands.Bot):
                     f"reachability={row['latest_reachability']} | snr={row['latest_snr']} | rssi={row['latest_rssi']}{control_text}"
                 )
 
-            await interaction.response.send_message("\n".join(lines), ephemeral=True)
+            await interaction.edit_original_response(content="\n".join(lines))
 
         @group.command(name="packet", description="Show one packet's observed propagation path")
         @app_commands.describe(pkt_hash="Packet hash in decimal or hex (for example 3158068015 or 0xbc3f1234)")
@@ -417,9 +420,11 @@ class MeshBridgeBot(commands.Bot):
                 await interaction.response.send_message("You do not have permission.", ephemeral=True)
                 return
 
+            await interaction.response.defer(ephemeral=True)
+
             details = self.bridge.get_packet_path_details(pkt_hash)
             if details is None:
-                await interaction.response.send_message("Packet hash not found in recent observations.", ephemeral=True)
+                await interaction.edit_original_response(content="Packet hash not found in recent observations.")
                 return
 
             # Present the operator view as an observed propagation history rather
@@ -446,7 +451,7 @@ class MeshBridgeBot(commands.Bot):
                     f"snr={sighting['snr']} rssi={sighting['rssi']}{control_text}"
                 )
 
-            await interaction.response.send_message("\n".join(lines), ephemeral=True)
+            await interaction.edit_original_response(content="\n".join(lines))
 
         return group
 
@@ -456,9 +461,11 @@ class MeshBridgeBot(commands.Bot):
 
         @group.command(name="list", description="List recent neighbors")
         async def list_cmd(interaction: discord.Interaction) -> None:
+            await interaction.response.defer(ephemeral=True)
+
             rows = self.bridge.neighbors.list_recent(limit=10)
             if not rows:
-                await interaction.response.send_message("No neighbors known yet.", ephemeral=True)
+                await interaction.edit_original_response(content="No neighbors known yet.")
                 return
 
             lines = []
@@ -470,13 +477,15 @@ class MeshBridgeBot(commands.Bot):
                     line = f"{label} | key={short_node_key(row.key)}"
                 lines.append(f"{line} | last_seen={format_last_seen_age(row.last_seen)}")
 
-            await interaction.response.send_message("\n".join(lines), ephemeral=True)
+            await interaction.edit_original_response(content="\n".join(lines))
 
         @group.command(name="show", description="Show one neighbor by key prefix")
         async def show_cmd(interaction: discord.Interaction, prefix: str) -> None:
+            await interaction.response.defer(ephemeral=True)
+
             row = self.bridge.neighbors.get(prefix)
             if row is None:
-                await interaction.response.send_message("Neighbor not found.", ephemeral=True)
+                await interaction.edit_original_response(content="Neighbor not found.")
                 return
 
             provisional = is_provisional_neighbor_key(row.key)
@@ -500,7 +509,7 @@ class MeshBridgeBot(commands.Bot):
                     f"source={row.source}",
                 ]
             )
-            await interaction.response.send_message(text, ephemeral=True)
+            await interaction.edit_original_response(content=text)
 
         @group.command(name="probe", description="Probe a neighbor by key prefix")
         async def probe_cmd(interaction: discord.Interaction, prefix: str) -> None:
@@ -541,9 +550,11 @@ class MeshBridgeBot(commands.Bot):
                 await interaction.response.send_message("You do not have permission.", ephemeral=True)
                 return
 
+            await interaction.response.defer(ephemeral=True)
+
             rows = self.bridge.list_recent_chatters(limit=10)
             if not rows:
-                await interaction.response.send_message("No recent mesh channel chatters yet.", ephemeral=True)
+                await interaction.edit_original_response(content="No recent mesh channel chatters yet.")
                 return
 
             lines: list[str] = []
@@ -580,9 +591,52 @@ class MeshBridgeBot(commands.Bot):
                     line = f"{line} | last=\"{preview}\""
                 lines.append(line)
 
-            await interaction.response.send_message("\n".join(lines), ephemeral=True)
+            await interaction.edit_original_response(content="\n".join(lines))
 
         return chatters_cmd
+
+    def _build_channels_command(self) -> app_commands.Command:
+        """Create the `/channels` command."""
+
+        @app_commands.command(name="channels", description="Show live MeshCore channel bindings and unknown hashes")
+        async def channels_cmd(interaction: discord.Interaction) -> None:
+            if not is_admin_user(interaction):
+                await interaction.response.send_message("You do not have permission.", ephemeral=True)
+                return
+
+            await interaction.response.defer(ephemeral=True)
+
+            lines: list[str] = []
+            known = self.bridge.list_known_channels()
+            if known:
+                lines.append("Known channels:")
+                for row in known:
+                    route_text = row["route_name"] or "unrouted"
+                    device_name = row["channel_name"] or "unnamed"
+                    lines.append(
+                        f"ch={row['channel_idx']} | hash={row['channel_hash']} | "
+                        f"device={device_name} | route={route_text}"
+                    )
+            else:
+                lines.append("Known channels: none")
+
+            unknown = self.bridge.list_unknown_group_hashes(limit=10)
+            if unknown:
+                lines.append("Unknown group hashes:")
+                for row in unknown:
+                    lines.append(
+                        f"hash={row['chan_hash']} | count={row['count']} | last_seen={format_last_seen_age(row['last_seen'])}"
+                    )
+            else:
+                lines.append("Unknown group hashes: none")
+
+            lines.append("App/device comparison:")
+            lines.append("This shows the bridge-connected node's live MeshCore channels.")
+            lines.append("I cannot read the separate phone app's channel settings from here.")
+
+            await interaction.edit_original_response(content="\n".join(lines))
+
+        return channels_cmd
 
     def _build_nodes_group(self) -> app_commands.Group:
         """Create the /nodes command group."""
@@ -590,16 +644,18 @@ class MeshBridgeBot(commands.Bot):
 
         @group.command(name="list", description="List all currently known nodes")
         async def list_cmd(interaction: discord.Interaction) -> None:
+            await interaction.response.defer(ephemeral=True)
+
             rows = [
                 row for row in self.bridge.neighbors.list_recent()
                 if has_node_list_signal(row)
             ][:25]
             if not rows:
-                await interaction.response.send_message("No actionable nodes yet.", ephemeral=True)
+                await interaction.edit_original_response(content="No actionable nodes yet.")
                 return
 
             lines = [format_node_list_line(self.bridge, row) for row in rows]
 
-            await interaction.response.send_message("\n".join(lines), ephemeral=True)
+            await interaction.edit_original_response(content="\n".join(lines))
 
         return group
