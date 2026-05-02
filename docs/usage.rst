@@ -111,6 +111,7 @@ Common slash commands:
 - ``/channels`` shows live device channels, route bindings, and unknown group hashes.
 - ``/chatters`` lists recent mesh channel senders from in-memory history.
 - ``/neighbors list`` and ``/nodes list`` inspect known node state.
+- Long ephemeral command output is split across follow-up responses automatically when needed to stay within Discord's message-length limit.
 
 Shutdown
 --------

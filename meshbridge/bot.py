@@ -18,6 +18,8 @@ from meshbridge.security import contains_mass_mention, detect_url, normalize_sen
 
 log = logging.getLogger(__name__)
 
+DISCORD_MESSAGE_LIMIT = 2000
+
 
 def format_neighbor_label(name: str | None, key: str | None) -> str:
     """Format a readable label for neighbor/node output."""
@@ -215,6 +217,56 @@ class MeshBridgeBot(commands.Bot):
         """Return a safe no-mentions policy."""
         return discord.AllowedMentions.none()
 
+    @staticmethod
+    def _chunk_response_lines(lines: list[str], limit: int = DISCORD_MESSAGE_LIMIT) -> list[str]:
+        """Split line-oriented command output into Discord-safe message chunks."""
+        chunks: list[str] = []
+        current: list[str] = []
+        current_length = 0
+
+        for raw_line in lines:
+            line = raw_line or ""
+
+            # If one line alone is too large, break it into smaller pieces.
+            if len(line) > limit:
+                if current:
+                    chunks.append("\n".join(current))
+                    current = []
+                    current_length = 0
+
+                start = 0
+                while start < len(line):
+                    chunks.append(line[start : start + limit])
+                    start += limit
+                continue
+
+            candidate_length = current_length + len(line) + (1 if current else 0)
+            if current and candidate_length > limit:
+                chunks.append("\n".join(current))
+                current = [line]
+                current_length = len(line)
+                continue
+
+            current.append(line)
+            current_length = candidate_length
+
+        if current:
+            chunks.append("\n".join(current))
+
+        return chunks or [""]
+
+    async def _send_deferred_lines(
+        self,
+        interaction: discord.Interaction,
+        lines: list[str],
+    ) -> None:
+        """Send deferred ephemeral output, splitting across follow-ups when needed."""
+        chunks = self._chunk_response_lines(lines)
+        await interaction.edit_original_response(content=chunks[0])
+
+        for chunk in chunks[1:]:
+            await interaction.followup.send(chunk, ephemeral=True)
+
     async def on_ready(self) -> None:
         """Log ready state."""
         log.info("Logged in as %s (%s)", self.user, getattr(self.user, "id", "unknown"))
@@ -411,7 +463,7 @@ class MeshBridgeBot(commands.Bot):
                     f"reachability={row['latest_reachability']} | snr={row['latest_snr']} | rssi={row['latest_rssi']}{control_text}"
                 )
 
-            await interaction.edit_original_response(content="\n".join(lines))
+            await self._send_deferred_lines(interaction, lines)
 
         @group.command(name="packet", description="Show one packet's observed propagation path")
         @app_commands.describe(pkt_hash="Packet hash in decimal or hex (for example 3158068015 or 0xbc3f1234)")
@@ -451,7 +503,7 @@ class MeshBridgeBot(commands.Bot):
                     f"snr={sighting['snr']} rssi={sighting['rssi']}{control_text}"
                 )
 
-            await interaction.edit_original_response(content="\n".join(lines))
+            await self._send_deferred_lines(interaction, lines)
 
         return group
 
@@ -477,7 +529,7 @@ class MeshBridgeBot(commands.Bot):
                     line = f"{label} | key={short_node_key(row.key)}"
                 lines.append(f"{line} | last_seen={format_last_seen_age(row.last_seen)}")
 
-            await interaction.edit_original_response(content="\n".join(lines))
+            await self._send_deferred_lines(interaction, lines)
 
         @group.command(name="show", description="Show one neighbor by key prefix")
         async def show_cmd(interaction: discord.Interaction, prefix: str) -> None:
@@ -591,7 +643,7 @@ class MeshBridgeBot(commands.Bot):
                     line = f"{line} | last=\"{preview}\""
                 lines.append(line)
 
-            await interaction.edit_original_response(content="\n".join(lines))
+            await self._send_deferred_lines(interaction, lines)
 
         return chatters_cmd
 
@@ -634,7 +686,7 @@ class MeshBridgeBot(commands.Bot):
             lines.append("This shows the bridge-connected node's live MeshCore channels.")
             lines.append("I cannot read the separate phone app's channel settings from here.")
 
-            await interaction.edit_original_response(content="\n".join(lines))
+            await self._send_deferred_lines(interaction, lines)
 
         return channels_cmd
 
@@ -656,6 +708,6 @@ class MeshBridgeBot(commands.Bot):
 
             lines = [format_node_list_line(self.bridge, row) for row in rows]
 
-            await interaction.edit_original_response(content="\n".join(lines))
+            await self._send_deferred_lines(interaction, lines)
 
         return group

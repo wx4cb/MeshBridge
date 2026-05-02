@@ -301,6 +301,7 @@ Useful bring-up commands:
 - `/mesh packets` and `/mesh packet <pkt_hash>` inspect recent observed RF packet paths.
 - `/chatters` lists recent mesh channel senders from in-memory message history.
 - `/neighbors list` and `/nodes list` inspect known neighbor identity and RF state.
+- Long ephemeral command output is automatically split into Discord-safe follow-up messages when it would exceed Discord's 2000-character limit.
 
 ## Docs generation
 

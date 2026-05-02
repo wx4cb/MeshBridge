@@ -13,6 +13,7 @@
 - `/mesh discover [filter_bits] [prefix_only] [since]` sends a MeshCore `DISCOVER_REQ` control packet from the companion device.
 - `/mesh packets` shows recent observed packet propagation summaries keyed by `pkt_hash`.
 - `/mesh packet <pkt_hash>` shows one packet's observed propagation history from recent RF sightings.
+- Large deferred command responses are automatically split into multiple ephemeral Discord messages so operator views do not fail on the 2000-character limit.
 
 ## `/channels`
 - `/channels` shows the live `CHANNEL_INFO` table reported by the connected MeshCore node.
