@@ -15,6 +15,46 @@ MeshEventCallback = Callable[[str, dict[str, Any]], Awaitable[None]]
 log = logging.getLogger("meshbridge.system")
 
 
+class MeshConnectionError(RuntimeError):
+    """Base class for MeshCore connection failures."""
+
+
+class NonRetryableMeshConnectionError(MeshConnectionError):
+    """Connection failure that should stop startup instead of retrying."""
+
+
+def _iter_exception_chain(exc: BaseException) -> list[BaseException]:
+    """Return the exception plus any chained causes and contexts."""
+    chain: list[BaseException] = []
+    current: BaseException | None = exc
+
+    while current is not None and current not in chain:
+        chain.append(current)
+        current = current.__cause__ or current.__context__
+
+    return chain
+
+
+def _is_missing_serial_port_error(exc: BaseException, serial_port: str) -> bool:
+    """Return True when an exception chain means the serial device is absent."""
+    port_text = (serial_port or "").strip()
+
+    for item in _iter_exception_chain(exc):
+        if isinstance(item, FileNotFoundError):
+            return True
+
+        message = str(item)
+        if (
+            port_text
+            and port_text in message
+            and "could not open port" in message.lower()
+            and "no such file or directory" in message.lower()
+        ):
+            return True
+
+    return False
+
+
 class MeshAdapter:
     """Thin wrapper around the MeshCore Python library."""
 
@@ -45,13 +85,30 @@ class MeshAdapter:
         if self.connection_type == "serial":
             if not self.serial_port:
                 raise RuntimeError("serial_port is required when mesh_connection_type is serial")
+            # `serial_port` may be either a direct device node like
+            # `/dev/ttyACM0` or a stable udev symlink under
+            # `/dev/serial/by-id/`.
             log.info("Connecting to MeshCore over serial port=%s baud_rate=%s", self.serial_port, self.baud_rate)
-            self._client = await MeshCore.create_serial(self.serial_port, self.baud_rate)
+            try:
+                self._client = await MeshCore.create_serial(self.serial_port, self.baud_rate)
+            except Exception as exc:
+                if _is_missing_serial_port_error(exc, self.serial_port):
+                    raise NonRetryableMeshConnectionError(
+                        f"Serial port is unavailable: {self.serial_port}"
+                    ) from exc
+                raise MeshConnectionError(
+                    f"MeshCore serial connection failed for {self.serial_port}"
+                ) from exc
         elif self.connection_type == "tcp":
             if not hasattr(MeshCore, "create_tcp"):
                 raise RuntimeError("MeshCore TCP connection helper is unavailable")
             log.info("Connecting to MeshCore over TCP host=%s port=%s", self.tcp_host, self.tcp_port)
-            self._client = await MeshCore.create_tcp(self.tcp_host, self.tcp_port)
+            try:
+                self._client = await MeshCore.create_tcp(self.tcp_host, self.tcp_port)
+            except Exception as exc:
+                raise MeshConnectionError(
+                    f"MeshCore TCP connection failed for {self.tcp_host}:{self.tcp_port}"
+                ) from exc
         else:
             raise RuntimeError(f"Unsupported mesh_connection_type: {self.connection_type}")
 

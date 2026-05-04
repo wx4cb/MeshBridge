@@ -89,6 +89,10 @@ async def async_main() -> int:
 
     try:
         await bot.start(config.discord_token)
+    except RuntimeError:
+        if bridge.state.fatal_startup_error:
+            return 1
+        raise
     finally:
         if not bot.is_closed():
             await bot.close()

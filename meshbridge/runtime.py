@@ -14,3 +14,4 @@ class BridgeState:
     global_paused: bool = False
     mesh_connected: bool = False
     reconnect_count: int = 0
+    fatal_startup_error: str | None = None

@@ -20,8 +20,12 @@ Serial mode is the default and connects to a local serial companion:
 .. code-block:: hjson
 
    mesh_connection_type: "serial"
-   serial_port: "/dev/ttyACM0"
+   # serial_port: "/dev/ttyACM0"
+   serial_port: "/dev/serial/by-id/usb-Espressif_Systems_heltec_wifi_lora_32_v4__16_MB_FLASH__2_MB_PSRAM__90706984D248-if00"
    baud_rate: 115200
+
+``serial_port`` can be either a direct device node like ``/dev/ttyACM0`` or,
+preferably, a stable udev symlink under ``/dev/serial/by-id/``.
 
 TCP mode connects to a pymc-style endpoint:
 
@@ -42,7 +46,8 @@ Validate configuration without starting the bot:
 
    python3 main.py --config config.hjson --check-config
 
-The validation log includes the active endpoint, for example ``serial:/dev/ttyACM0@115200`` or ``tcp:127.0.0.1:5000``.
+The validation log includes the active endpoint, for example
+``serial:/dev/serial/by-id/...@115200`` or ``tcp:127.0.0.1:5000``.
 
 Logging
 -------

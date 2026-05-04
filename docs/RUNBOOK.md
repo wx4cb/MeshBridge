@@ -18,9 +18,13 @@ Serial mode:
 
 ```hjson
 mesh_connection_type: "serial"
-serial_port: "/dev/ttyACM0"
+# serial_port: "/dev/ttyACM0"
+serial_port: "/dev/serial/by-id/usb-Espressif_Systems_heltec_wifi_lora_32_v4__16_MB_FLASH__2_MB_PSRAM__90706984D248-if00"
 baud_rate: 115200
 ```
+
+`serial_port` can point either at a direct device node like `/dev/ttyACM0` or,
+preferably, a stable udev symlink under `/dev/serial/by-id/`.
 
 TCP mode:
 

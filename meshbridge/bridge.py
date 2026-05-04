@@ -14,7 +14,7 @@ import psutil
 from meshbridge.config import AppConfig
 from meshbridge.history import MessageHistory
 from meshbridge.memory_store import UnhandledEventStore
-from meshbridge.mesh_adapter import MeshAdapter
+from meshbridge.mesh_adapter import MeshAdapter, NonRetryableMeshConnectionError
 from meshbridge.models import BridgeMessage, Route
 from meshbridge.neighbor_store import NeighborStore
 from meshbridge.rate_limit import SlidingWindowRateLimiter
@@ -327,6 +327,7 @@ class MeshBridge:
         self._worker_tasks: list[asyncio.Task[Any]] = []
         self._mesh_task: asyncio.Task[Any] | None = None
         self._stop_event = asyncio.Event()
+        self._startup_ready = asyncio.Event()
         self._last_auto_probe: dict[str, int] = {}
         self._pending_rf_samples: list[dict[str, Any]] = []
         self._recent_pkt_hashes: dict[int, dict[str, Any]] = {}
@@ -344,6 +345,8 @@ class MeshBridge:
     async def start(self) -> None:
         """Start bridge background tasks."""
         self._stop_event.clear()
+        self._startup_ready.clear()
+        self.state.fatal_startup_error = None
         await self.webhooks.start()
         self._worker_tasks = [
             asyncio.create_task(self.discord_to_mesh_worker(), name="discord_to_mesh_worker"),
@@ -355,6 +358,12 @@ class MeshBridge:
                 asyncio.create_task(self.auto_advert_worker(), name="auto_advert_worker")
             )
         self._mesh_task = asyncio.create_task(self.mesh_connection_loop(), name="mesh_connection_loop")
+        # Do not continue Discord startup until the mesh side has either
+        # connected once or reported a fatal startup problem.
+        await self._startup_ready.wait()
+
+        if self.state.fatal_startup_error:
+            raise RuntimeError(self.state.fatal_startup_error)
 
     async def stop(self) -> None:
         """Stop bridge background tasks."""
@@ -372,12 +381,15 @@ class MeshBridge:
     async def mesh_connection_loop(self) -> None:
         """Reconnect to MeshCore as needed."""
         delay = self.config.reconnect_initial_delay_seconds
+        connected_once = False
 
         while not self._stop_event.is_set():
             try:
                 await self.mesh.connect()
                 self.state.mesh_connected = True
                 self.state.reconnect_count += 1
+                connected_once = True
+                self._startup_ready.set()
                 system_log.info("Connected to MeshCore")
                 await self._refresh_channel_debug_info()
 
@@ -387,8 +399,24 @@ class MeshBridge:
 
             except asyncio.CancelledError:
                 raise
+            except NonRetryableMeshConnectionError as exc:
+                self.state.mesh_connected = False
+                if not connected_once:
+                    # A missing startup serial device is not recoverable by
+                    # reconnect backoff alone. Log it once and shut the bridge
+                    # down cleanly so the operator gets one actionable error.
+                    self.state.fatal_startup_error = str(exc)
+                    system_log.error("Fatal MeshCore startup error: %s", exc)
+                    # Release bridge.start() so setup_hook/main can exit
+                    # cleanly instead of continuing into Discord sync.
+                    self._startup_ready.set()
+                    self._stop_event.set()
+                    break
+                system_log.warning("MeshCore connection error: %s", exc)
             except Exception as exc:
                 self.state.mesh_connected = False
+                if not connected_once:
+                    self._startup_ready.set()
                 system_log.exception("Mesh connection loop error: %s", exc)
 
             if self._stop_event.is_set():
