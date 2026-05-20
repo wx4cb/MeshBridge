@@ -31,10 +31,13 @@
   # TCP settings, used when mesh_connection_type is "tcp".
   tcp_host: "127.0.0.1"
   tcp_port: 5000
+  # 0 disables TCP keepalive. Keep below the pymc companion idle timeout.
+  tcp_keepalive_interval_seconds: 60
+  tcp_keepalive_timeout_seconds: 10
 
-  # After switching companions or transports, run /channels once and verify
-  # that your route mesh_channel indices still match the connected node's live
-  # channel order.
+  # Routes are matched to the connected companion by channel name after startup,
+  # so the order can differ between this file and the companion. mesh_channel is
+  # still kept as a fallback if a route name is not found on the companion.
 
   # ============================================================================
   # Logging

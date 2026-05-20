@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import importlib.metadata
 import logging
 from pathlib import Path
 
@@ -66,6 +67,13 @@ async def async_main() -> int:
 
     setup_logging(config.log_level, config.log_file, config.log_modes)
     log = logging.getLogger(__name__)
+    system_log = logging.getLogger("meshbridge.system")
+    try:
+        meshcore_version = importlib.metadata.version("meshcore")
+    except importlib.metadata.PackageNotFoundError:
+        meshcore_version = "not installed"
+
+    system_log.info("Runtime dependency versions: meshcore=%s", meshcore_version)
 
     if args.check_config:
         mesh_endpoint = (
@@ -74,11 +82,13 @@ async def async_main() -> int:
             else f"tcp:{config.tcp_host}:{config.tcp_port}"
         )
         log.info(
-            "Config OK: routes=%s mesh_dm_channel_id=%s mesh_dm_user_id=%s mesh_endpoint=%s log_modes=%s",
+            "Config OK: routes=%s mesh_dm_channel_id=%s mesh_dm_user_id=%s mesh_endpoint=%s tcp_keepalive_interval_seconds=%s tcp_keepalive_timeout_seconds=%s log_modes=%s",
             len(config.routes),
             config.mesh_dm_channel_id,
             config.mesh_dm_user_id,
             mesh_endpoint,
+            config.tcp_keepalive_interval_seconds,
+            config.tcp_keepalive_timeout_seconds,
             config.log_modes,
         )
         return 0

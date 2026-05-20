@@ -69,6 +69,10 @@ MeshBridge/
 ├── pyproject.toml
 ├── systemd/
 │   └── meshbridge.service
+├── tools/
+│   ├── live_log_compare.py
+│   ├── log_compare.py
+│   └── packet_monitor.py
 ├── docs/
 │   ├── conf.py
 │   ├── sample.config.hjson
@@ -104,6 +108,9 @@ Copy `docs/sample.config.hjson` to `config.hjson` and fill in your values.
 
 HJSON is used so the config can keep comments while still loading as structured data.
 
+Install dependencies before validating the config. The loader requires `hjson`,
+which is included in `requirements.txt` and the package metadata.
+
 ### Route model
 
 Routes are defined once:
@@ -120,6 +127,8 @@ routes: [
 ```
 
 The bridge derives both lookup directions internally.
+In HJSON, route objects can be listed one after another inside the array; make
+sure each route object is closed with `}` before the next route begins.
 
 ### MeshCore connection
 
@@ -141,9 +150,12 @@ TCP mode connects to a pymc-style TCP endpoint:
 mesh_connection_type: "tcp"
 tcp_host: "127.0.0.1"
 tcp_port: 5000
+tcp_keepalive_interval_seconds: 60
+tcp_keepalive_timeout_seconds: 10
 ```
 
 `mesh_connection_type: "pymc"` is accepted as an alias for TCP.
+Set `tcp_keepalive_interval_seconds` to `0` to disable TCP keepalive polling.
 
 ### Scheduled adverts
 
@@ -155,6 +167,15 @@ auto_advert_flood: false
 ```
 
 Set `auto_advert_interval_hours` to a positive number to send one advert every N hours.
+
+### Logging
+
+`log_level` is the standard Python logging severity threshold. Use values such
+as `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL`.
+
+`log_modes` selects MeshBridge-specific categories. Valid modes are `DEBUG`,
+`SYSTEM`, `TRAFFICONLY`, `RFONLY`, and `QUIET`. `INFO` belongs in `log_level`,
+not in `log_modes`.
 
 ### Mesh DM room
 
@@ -169,12 +190,13 @@ channel hashes.
 Use `/channels` to see:
 
 - the live channel list reported by the connected node
-- which configured route is bound to each mesh channel index
+- which configured route is bound to each live mesh channel index
 - repeated unknown group-text hashes the bridge has heard
 
 This is especially useful when switching between different backends, because a
 USB serial companion and a TCP/pymc endpoint do not necessarily expose the same
-live channel order.
+live channel order. Route names are matched to live channel names first;
+configured `mesh_channel` numbers are fallback values.
 
 ## Install
 
@@ -201,9 +223,52 @@ python3 main.py --config config.hjson --check-config
 
 The validation output includes the active MeshCore endpoint, such as `serial:/dev/ttyACM0@115200` or `tcp:127.0.0.1:5000`.
 
-If the connected node's live channel order does not match your assumptions, use
-`/channels` after startup and update the `mesh_channel` values in `config.hjson`
-to match that specific node.
+On startup, the bridge reads the companion's live channel table and binds routes
+by channel name. `mesh_channel` remains a fallback if the companion does not
+report a matching name, so route order can differ between `config.hjson` and the
+connected node.
+
+## Packet diagnostics
+
+Two read-only helper tools can diagnose repeater-to-bridge gaps without another
+SPI radio.
+
+Use the companion monitor to watch the same MeshCore event stream the bridge
+uses, without starting Discord or forwarding messages:
+
+```bash
+.venv/bin/python tools/packet_monitor.py --config config.hjson --channel-scan
+.venv/bin/python tools/packet_monitor.py --config config.hjson --duration 300
+```
+
+Add `--jsonl --raw` when you want full payloads for later analysis.
+
+Use the log comparator to compare a pyMC repeater log with the current bridge
+log:
+
+```bash
+.venv/bin/python tools/log_compare.py \
+  --repeater-log ~/tmp.log \
+  --bridge-log meshbridge.log \
+  --start "2026-05-17 13:35:00" \
+  --end "2026-05-17 15:16:00"
+```
+
+The comparator extracts group-text channel hashes and cipher MACs from repeater
+packet prefixes, then checks whether MeshBridge later logged the same packet
+key through `RX_LOG_DATA`.
+
+For a live side-by-side view while both logs are being written:
+
+```bash
+.venv/bin/python tools/live_log_compare.py \
+  --repeater-log ~/tmp.log \
+  --bridge-log meshbridge.log
+```
+
+The live comparator prints `REPEATER`, `BRIDGE-RX`, `BRIDGE-DECODE`,
+`MISSING`, and `NO-DECODE` lines as packets move through the repeater and bridge
+logs.
 
 ## Run with systemd
 

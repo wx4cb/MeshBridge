@@ -36,6 +36,7 @@ Allowed values:
 - `QUIET`
 
 You can enable multiple modes at once.
+`INFO` is a `log_level` value, not a `log_modes` value.
 
 Example:
 

@@ -121,6 +121,8 @@ class AppConfig:
     baud_rate: int
     tcp_host: str
     tcp_port: int
+    tcp_keepalive_interval_seconds: float
+    tcp_keepalive_timeout_seconds: float
 
     # ---------------------------------------------------------------------
     # Logging settings
@@ -220,6 +222,8 @@ class AppConfig:
             baud_rate=int(raw.get("baud_rate", 115200)),
             tcp_host=str(raw.get("tcp_host", "127.0.0.1")).strip(),
             tcp_port=int(raw.get("tcp_port", 5000)),
+            tcp_keepalive_interval_seconds=float(raw.get("tcp_keepalive_interval_seconds", 60)),
+            tcp_keepalive_timeout_seconds=float(raw.get("tcp_keepalive_timeout_seconds", 10)),
 
             # -------------------------------------------------------------
             # Logging

@@ -140,7 +140,9 @@ queries during connect. It is used to:
 
 This matters because different connected nodes can present different live
 channel orders. A USB serial companion and a TCP/pymc endpoint should not be
-assumed to share the same channel index layout.
+assumed to share the same channel index layout, so the bridge resolves routes by
+matching configured route names to live companion channel names before falling
+back to configured indices.
 
 ## Control-frame decoding
 For `RAW_DATA` and `RX_LOG_DATA`, the bridge also inspects unencrypted MeshCore `CONTROL` payloads when enough packet bytes are present.

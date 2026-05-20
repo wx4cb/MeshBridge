@@ -187,6 +187,28 @@ def _coerce_int(value: Any) -> int | None:
         return None
 
 
+def _normalize_channel_name(value: object) -> str:
+    """Normalize a route/channel name for companion channel matching."""
+    text = str(value or "").strip().lower()
+    if not text:
+        return ""
+    return " ".join(text.split())
+
+
+def _channel_name_aliases(value: object) -> set[str]:
+    """Return tolerant aliases for matching configured routes to live channels."""
+    normalized = _normalize_channel_name(value)
+    if not normalized:
+        return set()
+
+    aliases = {normalized}
+    if normalized.startswith("#"):
+        aliases.add(normalized[1:])
+    else:
+        aliases.add(f"#{normalized}")
+    return aliases
+
+
 def decode_mesh_path(payload: dict[str, Any]) -> tuple[list[str], int | None, bool, bool]:
     """Decode path metadata from MeshCore payload variants."""
     path = payload.get("path")
@@ -295,7 +317,10 @@ class MeshBridge:
             route.mesh_channel: route for route in config.routes
         }
         self.routes_by_name: dict[str, Route] = {
-            route.name: route for route in config.routes
+            _normalize_channel_name(route.name): route for route in config.routes
+        }
+        self._configured_route_channels: dict[str, int] = {
+            route.name: route.mesh_channel for route in config.routes
         }
 
         self.history = MessageHistory(config.max_message_history)
@@ -388,14 +413,15 @@ class MeshBridge:
                 await self.mesh.connect()
                 self.state.mesh_connected = True
                 self.state.reconnect_count += 1
-                connected_once = True
-                self._startup_ready.set()
                 system_log.info("Connected to MeshCore")
                 await self._refresh_channel_debug_info()
+                connected_once = True
+                self._startup_ready.set()
 
                 delay = self.config.reconnect_initial_delay_seconds
 
                 await self._wait_for_mesh_disconnect()
+                await self.mesh.disconnect()
 
             except asyncio.CancelledError:
                 raise
@@ -434,6 +460,9 @@ class MeshBridge:
         for index, waiter in enumerate(self.mesh.create_disconnect_waiters()):
             waiters.append(asyncio.create_task(waiter, name=f"mesh_disconnect_waiter_{index}"))
 
+        if self.config.mesh_connection_type == "tcp" and self.config.tcp_keepalive_interval_seconds > 0:
+            waiters.append(asyncio.create_task(self._tcp_keepalive_waiter(), name="tcp_keepalive_waiter"))
+
         try:
             if len(waiters) == 1:
                 while not self._stop_event.is_set():
@@ -445,6 +474,37 @@ class MeshBridge:
                 waiter.cancel()
 
         self.state.mesh_connected = False
+
+    async def _tcp_keepalive_waiter(self) -> None:
+        """Poll a harmless companion command so TCP endpoints do not idle out."""
+        interval = self.config.tcp_keepalive_interval_seconds
+        timeout = self.config.tcp_keepalive_timeout_seconds
+        system_log.info(
+            "TCP MeshCore keepalive enabled interval_seconds=%s timeout_seconds=%s",
+            interval,
+            timeout,
+        )
+
+        while not self._stop_event.is_set():
+            await asyncio.sleep(interval)
+            if self._stop_event.is_set() or not self.state.mesh_connected:
+                return
+
+            try:
+                await asyncio.wait_for(self.mesh.get_channel_info(0), timeout=timeout)
+            except asyncio.TimeoutError:
+                system_log.warning(
+                    "TCP MeshCore keepalive timed out after %s seconds; reconnecting",
+                    timeout,
+                )
+                return
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                system_log.warning("TCP MeshCore keepalive failed; reconnecting: %s", exc)
+                return
+
+            system_log.debug("TCP MeshCore keepalive OK")
 
     def build_version_text(self) -> str:
         """Build the version/status response body."""
@@ -580,17 +640,19 @@ class MeshBridge:
                 "channel_idx": channel_idx,
                 "channel_hash": channel_hash,
                 "channel_name": channel_name,
-                "routed": channel_idx in self.routes_by_mesh,
+                "routed": False,
             }
+
+        self._channel_debug_info = refreshed
+        self._resolve_routes_from_live_channels()
+        for channel_idx, info in sorted(self._channel_debug_info.items()):
             rf_log.info(
                 "Channel info loaded: channel=%s hash=%s name=%s routed=%s",
                 channel_idx,
-                channel_hash,
-                channel_name,
-                channel_idx in self.routes_by_mesh,
+                info.get("channel_hash"),
+                info.get("channel_name"),
+                bool(info.get("routed")),
             )
-
-        self._channel_debug_info = refreshed
         known_hashes = self._format_known_channel_hashes()
         if known_hashes != "none":
             rf_log.info("Known bridge channel hashes: %s", known_hashes)
@@ -602,6 +664,79 @@ class MeshBridge:
         if placeholder_count:
             rf_log.info("Ignored placeholder/empty channel slots: %s", placeholder_count)
         rf_log.info("Channel scan complete: found=%s scanned=%s", len(refreshed), len(channel_indices))
+
+    def _resolve_routes_from_live_channels(self) -> None:
+        """Bind configured routes to live companion channel indices by name."""
+        live_by_name: dict[str, dict[str, Any]] = {}
+        duplicate_names: set[str] = set()
+
+        for info in self._channel_debug_info.values():
+            channel_name = info.get("channel_name")
+            if not channel_name:
+                continue
+            for alias in _channel_name_aliases(channel_name):
+                if alias in live_by_name:
+                    duplicate_names.add(alias)
+                    continue
+                live_by_name[alias] = info
+
+        resolved: dict[int, Route] = {}
+        for info in self._channel_debug_info.values():
+            info["routed"] = False
+            info.pop("route_name", None)
+
+        for route in self.config.routes:
+            configured_channel = self._configured_route_channels.get(route.name, route.mesh_channel)
+            matched_info = None
+            ambiguous_aliases = sorted(_channel_name_aliases(route.name) & duplicate_names)
+
+            if ambiguous_aliases:
+                rf_log.warning(
+                    "Route name match is ambiguous: route=%s aliases=%s; falling back to configured mesh_channel=%s",
+                    route.name,
+                    ",".join(ambiguous_aliases),
+                    configured_channel,
+                )
+            else:
+                for alias in _channel_name_aliases(route.name):
+                    matched_info = live_by_name.get(alias)
+                    if matched_info is not None:
+                        break
+
+            if matched_info is not None:
+                live_channel = int(matched_info["channel_idx"])
+                if route.mesh_channel != live_channel:
+                    rf_log.info(
+                        "Resolved route by companion channel name: route=%s configured_mesh_channel=%s live_mesh_channel=%s",
+                        route.name,
+                        configured_channel,
+                        live_channel,
+                    )
+                route.mesh_channel = live_channel
+                matched_info["routed"] = True
+                matched_info["route_name"] = route.name
+                resolved[live_channel] = route
+                continue
+
+            route.mesh_channel = configured_channel
+            fallback_info = self._channel_debug_info.get(configured_channel)
+            if fallback_info is not None:
+                fallback_info["routed"] = True
+                fallback_info["route_name"] = route.name
+                resolved[configured_channel] = route
+                rf_log.warning(
+                    "Route name not found on companion; using configured mesh_channel: route=%s mesh_channel=%s",
+                    route.name,
+                    configured_channel,
+                )
+            else:
+                rf_log.warning(
+                    "Route name not found on companion and configured mesh_channel is missing: route=%s mesh_channel=%s",
+                    route.name,
+                    configured_channel,
+                )
+
+        self.routes_by_mesh = resolved
 
     def _is_meaningful_channel_info(self, info: dict[str, Any]) -> bool:
         """Return True when a channel slot looks intentionally configured."""
@@ -640,10 +775,12 @@ class MeshBridge:
         """Log the configured route names alongside the device's actual channel info."""
         for route in self.config.routes:
             info = self._channel_debug_info.get(route.mesh_channel)
+            configured_channel = self._configured_route_channels.get(route.name, route.mesh_channel)
             if info is None:
                 rf_log.warning(
-                    "Configured route mapping: route=%s mesh_channel=%s device_channel=missing",
+                    "Configured route mapping: route=%s configured_mesh_channel=%s live_mesh_channel=%s device_channel=missing",
                     route.name,
+                    configured_channel,
                     route.mesh_channel,
                 )
                 continue
@@ -651,8 +788,9 @@ class MeshBridge:
             device_name = info.get("channel_name")
             device_hash = info.get("channel_hash")
             rf_log.info(
-                "Configured route mapping: route=%s mesh_channel=%s device_name=%s device_hash=%s",
+                "Configured route mapping: route=%s configured_mesh_channel=%s live_mesh_channel=%s device_name=%s device_hash=%s",
                 route.name,
+                configured_channel,
                 route.mesh_channel,
                 device_name,
                 device_hash,
@@ -1148,6 +1286,7 @@ class MeshBridge:
                     "channel_name": channel_name,
                     "routed": bool(previous.get("routed")) or channel_idx in self.routes_by_mesh,
                 }
+                self._resolve_routes_from_live_channels()
                 rf_log.info(
                     "CHANNEL_INFO channel=%s hash=%s name=%s known_hashes=%s",
                     channel_idx,

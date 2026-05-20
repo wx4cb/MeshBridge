@@ -17,9 +17,9 @@
 
 ## `/channels`
 - `/channels` shows the live `CHANNEL_INFO` table reported by the connected MeshCore node.
-- It also shows which configured route is bound to each mesh channel index.
+- It also shows which configured route is bound to each live mesh channel index.
 - Repeated unknown `GRP_TXT` channel hashes are summarized with counts and last-seen ages.
-- This is the quickest way to verify route/channel alignment after switching between TCP and serial companions.
+- This is the quickest way to verify route/channel alignment after switching between TCP and serial companions. Routes are matched by channel name first, with configured `mesh_channel` values used as fallback.
 
 ## `/chatters`
 - `/chatters` shows recent mesh channel senders from in-memory message history.

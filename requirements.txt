@@ -1,4 +1,5 @@
 discord.py>=2.4
 aiohttp>=3.9
+hjson>=3.1
 psutil>=5.9
-meshcore>=2.3.6
+meshcore>=2.3.7

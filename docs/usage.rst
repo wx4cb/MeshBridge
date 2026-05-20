@@ -10,7 +10,9 @@ Quick start:
 
 1. Copy ``docs/sample.config.hjson`` to ``config.hjson``.
 2. Fill in Discord, MeshCore, and route settings.
-3. Run ``python3 main.py --config config.hjson``.
+3. Install dependencies with ``pip install -r requirements.txt``.
+4. Run ``python3 main.py --config config.hjson --check-config``.
+5. Run ``python3 main.py --config config.hjson``.
 
 MeshCore connection
 -------------------
@@ -34,8 +36,11 @@ TCP mode connects to a pymc-style endpoint:
    mesh_connection_type: "tcp"
    tcp_host: "127.0.0.1"
    tcp_port: 5000
+   tcp_keepalive_interval_seconds: 60
+   tcp_keepalive_timeout_seconds: 10
 
 ``mesh_connection_type: "pymc"`` is accepted as an alias for TCP.
+Set ``tcp_keepalive_interval_seconds`` to ``0`` to disable TCP keepalive polling.
 
 Validation
 ----------
@@ -58,6 +63,13 @@ You can override the configured log level from the CLI:
 
    python3 main.py --config config.hjson --log-level DEBUG
 
+``log_level`` is the standard Python severity threshold. Valid values include
+``DEBUG``, ``INFO``, ``WARNING``, ``ERROR``, and ``CRITICAL``.
+
+``log_modes`` selects MeshBridge categories. Valid values are ``DEBUG``,
+``SYSTEM``, ``TRAFFICONLY``, ``RFONLY``, and ``QUIET``. ``INFO`` is a
+``log_level`` value, not a ``log_modes`` value.
+
 Route behavior
 --------------
 
@@ -69,6 +81,24 @@ Each route maps:
 
 Discord messages from a configured route channel are forwarded to the route's Mesh channel.
 Mesh channel traffic from that Mesh channel is forwarded to Discord through the route webhook.
+Each route object must be closed before the next one begins:
+
+.. code-block:: hjson
+
+   routes: [
+     {
+       name: "public"
+       mesh_channel: 0
+       discord_channel_id: 123456789012345678
+       webhook_url: "https://discord.com/api/webhooks/..."
+     }
+     {
+       name: "local"
+       mesh_channel: 1
+       discord_channel_id: 123456789012345679
+       webhook_url: "https://discord.com/api/webhooks/..."
+     }
+   ]
 
 Live channel diagnostics
 ------------------------
@@ -79,11 +109,13 @@ startup and keep a live channel table in memory.
 Use ``/channels`` to inspect:
 
 - the live channel list reported by the connected node
-- the configured route bound to each channel index
+- the configured route bound to each live channel index
 - repeated unknown ``GRP_TXT`` channel hashes heard over RF
 
 This is important when moving between a USB serial companion and a TCP/pymc
-endpoint, because the live mesh channel order can differ between nodes.
+endpoint, because the live mesh channel order can differ between nodes. Route
+names are matched to live channel names first; configured ``mesh_channel``
+values are used as fallbacks.
 
 Mesh direct messages
 --------------------

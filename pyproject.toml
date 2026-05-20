@@ -4,9 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "meshbridge"
-version = "0.1.0"
+version = "0.1.1"
 description = "Discord to MeshCore bridge"
 requires-python = ">=3.10"
+dependencies = [
+  "discord.py>=2.4",
+  "aiohttp>=3.9",
+  "hjson>=3.1",
+  "psutil>=5.9",
+  "meshcore>=2.3.7",
+]
 
 [tool.setuptools.packages.find]
 include = ["meshbridge*"]

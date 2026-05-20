@@ -1,2 +1,4 @@
-source .venv/bin/activate 
-python3 main.py --config config.hjson --log-level DEBUG
+#!/usr/bin/env sh
+set -eu
+
+exec .venv/bin/python main.py --config config.hjson --log-level DEBUG

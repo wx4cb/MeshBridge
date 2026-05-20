@@ -35,9 +35,9 @@ tcp_port: 5000
 ```
 
 After switching between TCP and a USB serial companion, start the bridge and
-run `/channels` once before trusting the route mappings. Different connected
-nodes can expose different live channel orders even when they share similar
-channel names.
+run `/channels` once before trusting the route mappings. The bridge binds routes
+by matching configured route names to the companion's live channel names; the
+configured `mesh_channel` is only a fallback when a name is missing or ambiguous.
 
 ## Channel diagnostics
 The bridge now fetches live `CHANNEL_INFO` from MeshCore on connect and keeps a
@@ -46,12 +46,13 @@ small in-memory channel table for operator inspection.
 Use `/channels` to verify:
 
 - which live device channels exist on the currently connected node
-- which configured route is bound to each `mesh_channel` index
+- which configured route is bound to each live companion channel index
 - which repeated `GRP_TXT` channel hashes are still unknown to the bridge
 
-If the route names in Discord do not line up with the device-reported channel
-names, update the `mesh_channel` values in `config.hjson` to match that
-specific companion or TCP endpoint.
+If the configured route names do not line up with the device-reported channel
+names, update the route `name` values in `config.hjson`. Keep `mesh_channel`
+accurate enough to be a fallback for companions that do not report channel
+names.
 
 ## Mesh discover command
 You can send a MeshCore discover request from Discord with:
@@ -124,6 +125,82 @@ log_modes: "TRAFFICONLY"
 log_level: "DEBUG"
 log_modes: "DEBUG"
 ```
+
+`INFO` is valid for `log_level`, but it is not a `log_modes` category. For
+normal operation, prefer:
+
+```hjson
+log_level: "INFO"
+log_modes: [
+  "SYSTEM"
+  "TRAFFICONLY"
+]
+```
+
+## Companion Packet Monitor
+
+When messages are visible on another companion but not forwarded by Discord,
+first check whether this bridge's companion is emitting the packets at all:
+
+```bash
+.venv/bin/python tools/packet_monitor.py --config config.hjson --channel-scan
+.venv/bin/python tools/packet_monitor.py --config config.hjson --duration 300
+```
+
+The monitor starts the same MeshCore serial/TCP connection used by the bridge,
+subscribes to `RX_LOG_DATA`, `RAW_DATA`, `CHANNEL_MSG_RECV`, adverts, path
+events, and errors, then prints compact packet summaries. It does not start the
+Discord bot and does not forward messages.
+
+For machine-readable capture:
+
+```bash
+.venv/bin/python tools/packet_monitor.py --config config.hjson --duration 300 --jsonl --raw
+```
+
+Stop the normal bridge service before running this if the companion serial port
+cannot be opened by two processes at once.
+
+## Repeater Versus Bridge Logs
+
+Compare a pyMC repeater log against the bridge log:
+
+```bash
+.venv/bin/python tools/log_compare.py \
+  --repeater-log ~/tmp.log \
+  --bridge-log meshbridge.log \
+  --start "2026-05-17 13:35:00" \
+  --end "2026-05-17 15:16:00"
+```
+
+The comparator looks for pyMC `Processing packet` / `RX GRP_TXT` lines and
+MeshBridge `RX_LOG_DATA raw payload` lines. It matches unique group-text packets
+by `channel_hash:cipher_mac`, which is stable across repeated flood sightings
+with different paths.
+
+For live side-by-side comparison while both logs are being written:
+
+```bash
+.venv/bin/python tools/live_log_compare.py \
+  --repeater-log ~/tmp.log \
+  --bridge-log meshbridge.log
+```
+
+The live comparator prints:
+
+- `REPEATER`: pyMC saw a group-text packet
+- `BRIDGE-RX`: MeshBridge saw the same packet in `RX_LOG_DATA`
+- `BRIDGE-DECODE`: MeshBridge emitted `CHANNEL_MSG_RECV`
+- `MISSING`: pyMC saw a packet but MeshBridge did not log matching `RX_LOG_DATA`
+- `NO-DECODE`: MeshBridge saw RF data but did not emit a decoded channel message
+
+Use `--from-start` to replay existing log content before following new lines,
+and `--show-duplicates` to include repeater duplicate flood sightings.
+
+If the repeater shows a packet but the bridge has no matching `RX_LOG_DATA`,
+the gap is below the Discord forwarding layer. If `RX_LOG_DATA` exists but there
+is no `CHANNEL_MSG_RECV` or `Mesh -> Discord` line, focus on MeshCore decode,
+channel keys, route mapping, or bridge forwarding logic.
 
 ## Neighbor cache behavior
 - stable keyed neighbors are persisted
