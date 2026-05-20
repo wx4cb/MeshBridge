@@ -5,6 +5,20 @@
 python3 main.py --config config.hjson
 ```
 
+## Fresh VM install
+
+From the repository root:
+
+```bash
+./install.sh
+```
+
+The installer creates or reuses `.venv`, installs `requirements.txt`, creates a
+starter `config.hjson` if one is missing, and validates the config when present.
+
+Use `./install.sh --dev` to include development dependencies, or
+`./install.sh --no-check` before filling in the config.
+
 ## Validate config only
 ```bash
 python3 main.py --config config.hjson --check-config

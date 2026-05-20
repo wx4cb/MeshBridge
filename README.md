@@ -200,6 +200,18 @@ configured `mesh_channel` numbers are fallback values.
 
 ## Install
 
+For a fresh VM checkout:
+
+```bash
+./install.sh
+```
+
+The installer creates `.venv`, installs Python dependencies, creates a starter
+`config.hjson` only if one does not already exist, and validates the config when
+present.
+
+Manual equivalent:
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
