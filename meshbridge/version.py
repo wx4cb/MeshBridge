@@ -6,7 +6,7 @@ import re
 
 VERSION_PATTERN = re.compile(r"^\d+\.\d+\.\d+$")
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 if not VERSION_PATTERN.fullmatch(__version__):
     raise RuntimeError("MeshBridge version must use major.minor.subminor format")

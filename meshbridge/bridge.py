@@ -45,6 +45,10 @@ DISCOVER_NODE_TYPE_NAMES = {
     0x4: "sensor",
 }
 
+# Keep bridge queues finite so a disconnected backend cannot grow memory
+# without bound during RF-heavy or Discord-heavy bursts.
+BRIDGE_QUEUE_MAXSIZE = 1000
+
 
 def resolve_sender_display(msg: BridgeMessage) -> str:
     """Return the best available sender display name for a message."""
@@ -308,6 +312,7 @@ class MeshBridge:
     def __init__(self, config: AppConfig) -> None:
         self.config = config
         self.state = BridgeState()
+        self.state.heartbeat_enabled = bool(config.heartbeat_route and config.heartbeat_interval_seconds > 0)
         self.bot = None
 
         self.routes_by_discord: dict[int, Route] = {
@@ -347,8 +352,8 @@ class MeshBridge:
         )
         self.mesh.set_callback(self.handle_mesh_event)
 
-        self.discord_to_mesh_queue: asyncio.Queue[BridgeMessage] = asyncio.Queue()
-        self.mesh_to_discord_queue: asyncio.Queue[BridgeMessage] = asyncio.Queue()
+        self.discord_to_mesh_queue: asyncio.Queue[BridgeMessage] = asyncio.Queue(maxsize=BRIDGE_QUEUE_MAXSIZE)
+        self.mesh_to_discord_queue: asyncio.Queue[BridgeMessage] = asyncio.Queue(maxsize=BRIDGE_QUEUE_MAXSIZE)
         self._worker_tasks: list[asyncio.Task[Any]] = []
         self._mesh_task: asyncio.Task[Any] | None = None
         self._stop_event = asyncio.Event()
@@ -381,6 +386,10 @@ class MeshBridge:
         if self.config.auto_advert_interval_hours > 0:
             self._worker_tasks.append(
                 asyncio.create_task(self.auto_advert_worker(), name="auto_advert_worker")
+            )
+        if self.config.heartbeat_route and self.config.heartbeat_interval_seconds > 0:
+            self._worker_tasks.append(
+                asyncio.create_task(self.heartbeat_worker(), name="heartbeat_worker")
             )
         self._mesh_task = asyncio.create_task(self.mesh_connection_loop(), name="mesh_connection_loop")
         # Do not continue Discord startup until the mesh side has either
@@ -564,6 +573,10 @@ class MeshBridge:
             msg = await self.discord_to_mesh_queue.get()
             try:
                 await self._deliver_discord_to_mesh(msg)
+            except Exception as exc:
+                msg.delivery_status = "failed"
+                msg.drop_reason = type(exc).__name__
+                system_log.exception("Discord -> Mesh delivery failed: %s", exc)
             finally:
                 self.history.add(msg)
                 self.discord_to_mesh_queue.task_done()
@@ -574,6 +587,10 @@ class MeshBridge:
             msg = await self.mesh_to_discord_queue.get()
             try:
                 await self._deliver_mesh_to_discord(msg)
+            except Exception as exc:
+                msg.delivery_status = "failed"
+                msg.drop_reason = type(exc).__name__
+                system_log.exception("Mesh -> Discord delivery failed: %s", exc)
             finally:
                 self.history.add(msg)
                 self.mesh_to_discord_queue.task_done()
@@ -612,6 +629,112 @@ class MeshBridge:
                 system_log.info("Sent scheduled advert: flood=%s", flood)
             except Exception as exc:
                 system_log.exception("Scheduled advert failed: %s", exc)
+
+    async def heartbeat_worker(self) -> None:
+        """Send scheduled Discord-origin heartbeat messages to a mesh route."""
+        interval_seconds = max(60.0, self.config.heartbeat_interval_seconds)
+        try:
+            route = self._heartbeat_route()
+        except RuntimeError as exc:
+            system_log.error("%s", exc)
+            return
+
+        system_log.info(
+            "Route heartbeat configured: route=%s interval_seconds=%s enabled=%s",
+            route.name,
+            interval_seconds,
+            self.state.heartbeat_enabled,
+        )
+
+        while not self._stop_event.is_set():
+            try:
+                await asyncio.wait_for(self._stop_event.wait(), timeout=interval_seconds)
+                break
+            except asyncio.TimeoutError:
+                pass
+
+            if not self.state.heartbeat_enabled:
+                continue
+
+            if not self.state.mesh_connected:
+                system_log.info("Skipping route heartbeat because MeshCore is disconnected: route=%s", route.name)
+                continue
+
+            await self.send_heartbeat_once()
+
+    def _heartbeat_route(self) -> Route:
+        """Return the configured heartbeat route or raise a clear error."""
+        route_name = self.config.heartbeat_route or ""
+        route = self.routes_by_name.get(_normalize_channel_name(route_name))
+        if route is None:
+            raise RuntimeError(f"Heartbeat route is not configured: {route_name}")
+        return route
+
+    def heartbeat_status_text(self) -> str:
+        """Return a short human-readable heartbeat status."""
+        if not self.config.heartbeat_route or self.config.heartbeat_interval_seconds <= 0:
+            return "Heartbeat is not configured."
+
+        try:
+            route = self._heartbeat_route()
+            route_text = f"{route.name} mesh_channel={route.mesh_channel}"
+        except RuntimeError as exc:
+            route_text = str(exc)
+
+        state = "enabled" if self.state.heartbeat_enabled else "stopped"
+        return (
+            f"Heartbeat {state}: route={route_text}, "
+            f"interval_seconds={max(60.0, self.config.heartbeat_interval_seconds)}, "
+            f"text={self.config.heartbeat_text!r}"
+        )
+
+    async def start_heartbeat(self, *, send_now: bool = True) -> tuple[str, bool]:
+        """Enable the configured heartbeat and optionally queue one now."""
+        self._heartbeat_route()
+        self.state.heartbeat_enabled = True
+        sent_now = False
+        if send_now:
+            if self.state.mesh_connected:
+                await self.send_heartbeat_once()
+                sent_now = True
+            else:
+                system_log.info("Heartbeat started but immediate send was skipped because MeshCore is disconnected")
+        return self.heartbeat_status_text(), sent_now
+
+    def stop_heartbeat(self) -> str:
+        """Disable scheduled route heartbeats."""
+        self.state.heartbeat_enabled = False
+        return self.heartbeat_status_text()
+
+    async def send_heartbeat_once(self) -> None:
+        """Queue one synthetic Discord-origin heartbeat message."""
+        route = self._heartbeat_route()
+        now = int(time.time())
+        nonce = uuid.uuid4().hex[:8]
+        # The nonce makes each scheduled heartbeat unique while still letting
+        # operators recognize RF echoes of the same flooded packet in logs.
+        msg = BridgeMessage(
+            message_id=str(uuid.uuid4()),
+            source="discord",
+            kind="channel",
+            created_at=now,
+            text=f"{self.config.heartbeat_text} {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(now))} {nonce}",
+        )
+        msg.sender.name = "MeshBridge heartbeat"
+        msg.sender.display = "MeshBridge heartbeat"
+        msg.route.route_name = route.name
+        msg.route.mesh_channel = route.mesh_channel
+        msg.route.discord_channel_id = route.discord_channel_id
+        msg.route.webhook_url = route.webhook_url
+        msg.route.target = "mesh"
+        msg.metadata["heartbeat"] = True
+        msg.metadata["heartbeat_nonce"] = nonce
+        msg.metadata["discord_channel_id"] = route.discord_channel_id
+        msg.contains_url = detect_url(msg.text)
+        msg.contains_mass_mention = contains_mass_mention(msg.text)
+        msg.text_safe_for_log = safe_log_text(msg.text)
+
+        await self.enqueue_discord_message(msg)
 
     async def _refresh_channel_debug_info(self) -> None:
         """Load channel definitions so raw RF log hashes can be diagnosed."""

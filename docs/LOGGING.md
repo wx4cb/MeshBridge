@@ -91,6 +91,7 @@ Enables RF/path/probe logging:
 - pending RF correlation
 - decoded control-frame details from `RAW_DATA` / `RX_LOG_DATA`
 - auto-probe activity
+- route heartbeat RF echoes when they appear as `RX_LOG_DATA`
 
 In practice, this can include lines showing:
 
@@ -112,6 +113,15 @@ log_file: "meshbridge.log"
 ```
 
 Both console and file handlers are installed by `setup_logging()`.
+
+Local runtime logs are intentionally ignored by Git. Common files include:
+
+- `meshbridge.log`
+- `repeater.log`
+- `rpi_syslog.log`
+
+Use `tools/log_compare.py` or `tools/live_log_compare.py` when you need to
+compare repeated flood sightings against unique group-text packets.
 
 ## Third-party log noise
 MeshBridge reduces noisy logs from:

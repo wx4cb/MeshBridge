@@ -90,6 +90,32 @@ def _dedupe_or_default(items: list[str]) -> list[str]:
     return result or ["DEBUG"]
 
 
+def _positive_int(raw: object, name: str, default: int) -> int:
+    """Return a positive integer config value."""
+    # Fail during config load instead of letting invalid runtime limits turn
+    # into silent no-op loops, unbounded splitting, or confusing rate behavior.
+    value = int(raw if raw is not None else default)
+    if value <= 0:
+        raise ValueError(f"{name} must be greater than zero")
+    return value
+
+
+def _positive_float(raw: object, name: str, default: float) -> float:
+    """Return a positive float config value."""
+    value = float(raw if raw is not None else default)
+    if value <= 0:
+        raise ValueError(f"{name} must be greater than zero")
+    return value
+
+
+def _nonnegative_float(raw: object, name: str, default: float) -> float:
+    """Return a non-negative float config value."""
+    value = float(raw if raw is not None else default)
+    if value < 0:
+        raise ValueError(f"{name} must be zero or greater")
+    return value
+
+
 @dataclass(slots=True)
 class AppConfig:
     """Application configuration.
@@ -172,6 +198,13 @@ class AppConfig:
     auto_advert_flood: bool
 
     # ---------------------------------------------------------------------
+    # Route heartbeat behavior
+    # ---------------------------------------------------------------------
+    heartbeat_route: str | None
+    heartbeat_interval_seconds: float
+    heartbeat_text: str
+
+    # ---------------------------------------------------------------------
     # Route mappings
     # ---------------------------------------------------------------------
     routes: list[Route]
@@ -222,8 +255,16 @@ class AppConfig:
             baud_rate=int(raw.get("baud_rate", 115200)),
             tcp_host=str(raw.get("tcp_host", "127.0.0.1")).strip(),
             tcp_port=int(raw.get("tcp_port", 5000)),
-            tcp_keepalive_interval_seconds=float(raw.get("tcp_keepalive_interval_seconds", 60)),
-            tcp_keepalive_timeout_seconds=float(raw.get("tcp_keepalive_timeout_seconds", 10)),
+            tcp_keepalive_interval_seconds=_nonnegative_float(
+                raw.get("tcp_keepalive_interval_seconds"),
+                "tcp_keepalive_interval_seconds",
+                60,
+            ),
+            tcp_keepalive_timeout_seconds=_positive_float(
+                raw.get("tcp_keepalive_timeout_seconds"),
+                "tcp_keepalive_timeout_seconds",
+                10,
+            ),
 
             # -------------------------------------------------------------
             # Logging
@@ -236,41 +277,80 @@ class AppConfig:
             # -------------------------------------------------------------
             # Runtime / cache
             # -------------------------------------------------------------
-            max_message_history=int(raw.get("max_message_history", 100)),
-            max_unhandled_events=int(raw.get("max_unhandled_events", 100)),
+            max_message_history=_positive_int(raw.get("max_message_history"), "max_message_history", 100),
+            max_unhandled_events=_positive_int(raw.get("max_unhandled_events"), "max_unhandled_events", 100),
             neighbor_cache_file=str(raw.get("neighbor_cache_file", "neighbors.json")).strip(),
-            neighbor_cache_limit=int(raw.get("neighbor_cache_limit", 5)),
+            neighbor_cache_limit=_positive_int(raw.get("neighbor_cache_limit"), "neighbor_cache_limit", 5),
 
             # -------------------------------------------------------------
             # Rate limiting
             # -------------------------------------------------------------
-            rate_limit_window_seconds=int(raw.get("rate_limit_window_seconds", 10)),
-            rate_limit_max_messages=int(raw.get("rate_limit_max_messages", 5)),
+            rate_limit_window_seconds=_positive_int(
+                raw.get("rate_limit_window_seconds"),
+                "rate_limit_window_seconds",
+                10,
+            ),
+            rate_limit_max_messages=_positive_int(raw.get("rate_limit_max_messages"), "rate_limit_max_messages", 5),
 
             # -------------------------------------------------------------
             # Mesh chunking
             # -------------------------------------------------------------
-            mesh_chunk_size=int(raw.get("mesh_chunk_size", 180)),
-            mesh_chunk_delay_seconds=float(raw.get("mesh_chunk_delay_seconds", 0.5)),
+            mesh_chunk_size=_positive_int(raw.get("mesh_chunk_size"), "mesh_chunk_size", 180),
+            mesh_chunk_delay_seconds=_nonnegative_float(
+                raw.get("mesh_chunk_delay_seconds"),
+                "mesh_chunk_delay_seconds",
+                0.5,
+            ),
 
             # -------------------------------------------------------------
             # Webhook / reconnect
             # -------------------------------------------------------------
-            webhook_timeout_seconds=float(raw.get("webhook_timeout_seconds", 10)),
-            reconnect_initial_delay_seconds=float(raw.get("reconnect_initial_delay_seconds", 2)),
-            reconnect_max_delay_seconds=float(raw.get("reconnect_max_delay_seconds", 30)),
+            webhook_timeout_seconds=_positive_float(raw.get("webhook_timeout_seconds"), "webhook_timeout_seconds", 10),
+            reconnect_initial_delay_seconds=_positive_float(
+                raw.get("reconnect_initial_delay_seconds"),
+                "reconnect_initial_delay_seconds",
+                2,
+            ),
+            reconnect_max_delay_seconds=_positive_float(
+                raw.get("reconnect_max_delay_seconds"),
+                "reconnect_max_delay_seconds",
+                30,
+            ),
 
             # -------------------------------------------------------------
             # Auto-probe
             # -------------------------------------------------------------
             auto_probe_on_advert=bool(raw.get("auto_probe_on_advert", True)),
-            auto_probe_min_interval_seconds=int(raw.get("auto_probe_min_interval_seconds", 300)),
+            auto_probe_min_interval_seconds=_positive_int(
+                raw.get("auto_probe_min_interval_seconds"),
+                "auto_probe_min_interval_seconds",
+                300,
+            ),
 
             # -------------------------------------------------------------
             # Auto-advert
             # -------------------------------------------------------------
-            auto_advert_interval_hours=float(raw.get("auto_advert_interval_hours", 0)),
+            auto_advert_interval_hours=_nonnegative_float(
+                raw.get("auto_advert_interval_hours"),
+                "auto_advert_interval_hours",
+                0,
+            ),
             auto_advert_flood=bool(raw.get("auto_advert_flood", False)),
+
+            # -------------------------------------------------------------
+            # Route heartbeat
+            # -------------------------------------------------------------
+            heartbeat_route=(
+                str(raw.get("heartbeat_route")).strip()
+                if raw.get("heartbeat_route") is not None
+                else None
+            ),
+            heartbeat_interval_seconds=_nonnegative_float(
+                raw.get("heartbeat_interval_seconds"),
+                "heartbeat_interval_seconds",
+                0,
+            ),
+            heartbeat_text=str(raw.get("heartbeat_text", "heartbeat")).strip() or "heartbeat",
 
             # -------------------------------------------------------------
             # Routes

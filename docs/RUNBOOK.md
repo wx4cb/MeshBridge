@@ -102,6 +102,25 @@ interval after startup before sending, so restarting the bridge does not
 immediately send an advert. Use `auto_advert_flood: true` only when you
 intentionally want the scheduled advert to be a flood advert.
 
+## Route heartbeats
+Set `heartbeat_route` and `heartbeat_interval_seconds` to send a periodic test
+message over one configured route:
+
+```hjson
+heartbeat_route: "WX4CB"
+heartbeat_interval_seconds: 300
+heartbeat_text: "heartbeat"
+```
+
+The scheduler waits one interval before the first automatic send. Use
+`/bridge heartbeat-start` to enable the scheduler and send one immediately, or
+`/bridge heartbeat-stop` to pause it until the next start or process restart.
+
+If repeater logs show one `TX ... type=GRP_TXT` followed by one or more
+`RX GRP_TXT` or `Duplicate packet ignored` lines, that usually means the same
+flooded heartbeat was heard back through the mesh. It does not by itself mean
+MeshBridge injected the heartbeat twice.
+
 ## Packet path summary commands
 You can inspect recent observed propagation paths with:
 
@@ -211,10 +230,26 @@ The live comparator prints:
 Use `--from-start` to replay existing log content before following new lines,
 and `--show-duplicates` to include repeater duplicate flood sightings.
 
+The repository also includes `repeaterlog.sh`, which tails the remote
+`pymc-repeater` journal into `repeater.log` and launches the live comparator
+against `meshbridge.log`. Adjust its SSH host/user for your repeater before
+using it on another install.
+
 If the repeater shows a packet but the bridge has no matching `RX_LOG_DATA`,
 the gap is below the Discord forwarding layer. If `RX_LOG_DATA` exists but there
 is no `CHANNEL_MSG_RECV` or `Mesh -> Discord` line, focus on MeshCore decode,
 channel keys, route mapping, or bridge forwarding logic.
+
+## If undervoltage is suspected
+Check the Pi/system log for voltage and throttling messages:
+
+```bash
+rg -i "undervoltage|under-voltage|voltage normal|low voltage|throttl|brownout" rpi_syslog.log
+```
+
+A clean search after a power-supply change is a good sign. When available on
+the target Pi, `vcgencmd get_throttled` gives the firmware's direct throttling
+state; this command may not exist in non-Pi development environments.
 
 ## Neighbor cache behavior
 - stable keyed neighbors are persisted

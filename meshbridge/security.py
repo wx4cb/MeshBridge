@@ -64,6 +64,9 @@ def format_forwarded_text(sender: str, text: str, key_prefix: str | None = None)
 
 def split_for_mesh(text: str, max_len: int) -> list[str]:
     """Split a long outbound message into mesh-safe chunks."""
+    if max_len <= 0:
+        raise ValueError("max_len must be greater than zero")
+
     compact = " ".join(text.replace("\r", " ").replace("\n", " ").split()).strip()
     if not compact:
         return []

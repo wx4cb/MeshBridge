@@ -97,6 +97,16 @@
   auto_advert_flood: false
 
   # ============================================================================
+  # Route heartbeat behavior
+  # ============================================================================
+  # Disabled by default. Set heartbeat_route to one configured route name and
+  # heartbeat_interval_seconds to a positive value to send a timestamped
+  # Discord-origin heartbeat to that mesh route on a schedule.
+  heartbeat_route: null
+  heartbeat_interval_seconds: 0
+  heartbeat_text: "heartbeat"
+
+  # ============================================================================
   # Routes
   # ============================================================================
   routes: [

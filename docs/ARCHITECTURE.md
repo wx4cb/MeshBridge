@@ -7,6 +7,7 @@ MeshBridge moves plain-text traffic between Discord and MeshCore while tracking:
 - neighbor identity
 - RF/path telemetry
 - recent unhandled MeshCore events
+- optional route heartbeat state
 
 The bridge keeps Discord-facing behavior intentionally simple:
 
@@ -23,13 +24,15 @@ The bridge keeps Discord-facing behavior intentionally simple:
 - `mesh_connection_loop()` now fetches live `CHANNEL_INFO` from MeshCore after connect so the bridge can compare route bindings and raw group-text hashes against the connected node's actual channel table.
 
 ### Background tasks
-`meshbridge.bridge.MeshBridge` owns three long-lived background loops:
+`meshbridge.bridge.MeshBridge` owns three always-on background loops:
 
 - `discord_to_mesh_worker()`
 - `mesh_to_discord_worker()`
 - `persistence_worker()`
 
 It also runs `mesh_connection_loop()` to connect and reconnect to MeshCore.
+When configured, it starts optional scheduled workers for MeshCore adverts and
+route heartbeats.
 
 ### Shutdown
 Shutdown is coordinated from `main.py` with a `try/finally` around `bot.start(...)`, so `Ctrl-C` still closes:
@@ -60,6 +63,10 @@ This avoids the unclosed-client-session warnings that can happen when async reso
 2. Message text and attachment URLs are flattened into plain text.
 3. The bridge enqueues a `BridgeMessage`.
 4. `discord_to_mesh_worker()` rate-limits, formats `Sender: body`, chunks for mesh size, and sends through `MeshAdapter`.
+
+The Discord-to-mesh and mesh-to-Discord queues are bounded. If a backend stalls,
+the process records delivery failures instead of allowing pending work to grow
+without limit.
 
 ### Mesh -> Discord channel traffic
 1. `handle_mesh_event()` builds a `BridgeMessage` from MeshCore payloads.
@@ -214,6 +221,20 @@ background scheduler that sends a MeshCore advert every configured interval.
 The first scheduled advert is sent after one full interval, not immediately on
 startup. If MeshCore is disconnected when the timer fires, that cycle is skipped
 and the worker tries again on the next interval.
+
+## Route heartbeat behavior
+When `heartbeat_route` and `heartbeat_interval_seconds` are configured, the
+bridge starts a scheduler that creates a Discord-origin synthetic
+`BridgeMessage` for that route.
+
+Heartbeats use the configured text plus a UTC timestamp and short nonce. The
+nonce makes each scheduled heartbeat unique, while the RF packet hash/cipher
+MAC still lets operators recognize repeated flood sightings of the same
+heartbeat packet in logs.
+
+The heartbeat can be stopped and restarted with `/bridge heartbeat-stop` and
+`/bridge heartbeat-start`. Runtime stop/start state is in memory; config still
+controls whether the worker exists after restart.
 
 ## Logging model
 MeshBridge logging has two separate controls:

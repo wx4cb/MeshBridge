@@ -1,3 +1,4 @@
+neighbors.json
 neighbours.json
 config.hjson
 .env
@@ -9,3 +10,7 @@ config.hjson
 .codex
 __pycache__
 meshbridge/__pycache__/
+
+repeater.log
+rpi_syslog.log
+meshbridge.log

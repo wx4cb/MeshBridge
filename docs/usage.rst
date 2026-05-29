@@ -137,12 +137,34 @@ Scheduled adverts are disabled by default:
 
 Set ``auto_advert_interval_hours`` to a positive number to send one advert every N hours. The first scheduled advert waits one full interval after startup.
 
+Route heartbeats
+----------------
+
+Route heartbeats are disabled by default:
+
+.. code-block:: hjson
+
+   heartbeat_route: null
+   heartbeat_interval_seconds: 0
+   heartbeat_text: "heartbeat"
+
+Set ``heartbeat_route`` to a configured route name and
+``heartbeat_interval_seconds`` to a positive value to send one timestamped
+heartbeat to that mesh route every interval. The scheduler uses a 60 second
+minimum interval. Each heartbeat includes a UTC timestamp and short nonce so RF
+logs can separate new heartbeats from repeated sightings of the same flooded
+packet.
+
+Use ``/bridge heartbeat-status``, ``/bridge heartbeat-start``, and
+``/bridge heartbeat-stop`` to inspect or control the heartbeat at runtime.
+
 Operator commands
 -----------------
 
 Common slash commands:
 
 - ``/bridge status`` shows bridge health and process stats.
+- ``/bridge heartbeat-status`` shows route heartbeat state.
 - ``/mesh advert [flood]`` sends a manual advert.
 - ``/mesh packets`` summarizes recent observed packet paths.
 - ``/channels`` shows live device channels, route bindings, and unknown group hashes.

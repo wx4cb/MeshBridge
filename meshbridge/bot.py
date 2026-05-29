@@ -361,6 +361,44 @@ class MeshBridgeBot(commands.Bot):
             text = self.bridge.build_version_text()
             await interaction.response.send_message(text, ephemeral=True)
 
+        @group.command(name="heartbeat-start", description="Start route heartbeat messages")
+        async def heartbeat_start_cmd(interaction: discord.Interaction) -> None:
+            if not is_admin_user(interaction):
+                await interaction.response.send_message("You do not have permission.", ephemeral=True)
+                return
+
+            await interaction.response.defer(ephemeral=True)
+
+            try:
+                text, sent_now = await self.bridge.start_heartbeat(send_now=True)
+            except Exception as exc:
+                await interaction.edit_original_response(content=f"Heartbeat start failed: {exc}")
+                return
+
+            suffix = (
+                "Sent one heartbeat now."
+                if sent_now
+                else "MeshCore is disconnected, so no immediate heartbeat was sent."
+            )
+            await interaction.edit_original_response(content=f"{text}. {suffix}")
+
+        @group.command(name="heartbeat-stop", description="Stop route heartbeat messages")
+        async def heartbeat_stop_cmd(interaction: discord.Interaction) -> None:
+            if not is_admin_user(interaction):
+                await interaction.response.send_message("You do not have permission.", ephemeral=True)
+                return
+
+            text = self.bridge.stop_heartbeat()
+            await interaction.response.send_message(text, ephemeral=True)
+
+        @group.command(name="heartbeat-status", description="Show route heartbeat status")
+        async def heartbeat_status_cmd(interaction: discord.Interaction) -> None:
+            if not is_admin_user(interaction):
+                await interaction.response.send_message("You do not have permission.", ephemeral=True)
+                return
+
+            await interaction.response.send_message(self.bridge.heartbeat_status_text(), ephemeral=True)
+
         @group.command(name="unhandled", description="Show recent unhandled mesh events")
         async def unhandled_cmd(interaction: discord.Interaction) -> None:
             if not is_admin_user(interaction):
@@ -513,6 +551,10 @@ class MeshBridgeBot(commands.Bot):
 
         @group.command(name="list", description="List recent neighbors")
         async def list_cmd(interaction: discord.Interaction) -> None:
+            if not is_admin_user(interaction):
+                await interaction.response.send_message("You do not have permission.", ephemeral=True)
+                return
+
             await interaction.response.defer(ephemeral=True)
 
             rows = self.bridge.neighbors.list_recent(limit=10)
@@ -533,6 +575,10 @@ class MeshBridgeBot(commands.Bot):
 
         @group.command(name="show", description="Show one neighbor by key prefix")
         async def show_cmd(interaction: discord.Interaction, prefix: str) -> None:
+            if not is_admin_user(interaction):
+                await interaction.response.send_message("You do not have permission.", ephemeral=True)
+                return
+
             await interaction.response.defer(ephemeral=True)
 
             row = self.bridge.neighbors.get(prefix)
@@ -696,6 +742,10 @@ class MeshBridgeBot(commands.Bot):
 
         @group.command(name="list", description="List all currently known nodes")
         async def list_cmd(interaction: discord.Interaction) -> None:
+            if not is_admin_user(interaction):
+                await interaction.response.send_message("You do not have permission.", ephemeral=True)
+                return
+
             await interaction.response.defer(ephemeral=True)
 
             rows = [

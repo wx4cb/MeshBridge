@@ -4,6 +4,26 @@ All notable MeshBridge changes are tracked here.
 
 MeshBridge uses `major.minor.subminor` version numbers.
 
+## 0.1.2 - 2026-05-29
+
+### Added
+
+- Added optional route heartbeat messages with `/bridge heartbeat-start`, `/bridge heartbeat-stop`, and `/bridge heartbeat-status`.
+- Added `heartbeat_route`, `heartbeat_interval_seconds`, and `heartbeat_text` configuration.
+- Added bounded bridge queues to cap pending Discord-to-mesh and mesh-to-Discord work.
+- Added `repeaterlog.sh` for live repeater-log comparison against MeshBridge logs.
+
+### Changed
+
+- Made neighbor and node inspection commands administrator-only.
+- Tightened numeric configuration validation for limits, delays, reconnects, chunking, and keepalive settings.
+- Ignored local runtime artifacts including `meshbridge.log`, `repeater.log`, `rpi_syslog.log`, and neighbor cache files.
+
+### Fixed
+
+- Captured delivery worker exceptions into message history instead of letting a worker task die silently.
+- Rejected invalid mesh chunk sizes before outbound message splitting.
+
 ## 0.1.1 - 2026-05-17
 
 ### Fixed

@@ -5,6 +5,9 @@
 - `/bridge resume` resumes all bridge traffic.
 - `/bridge status` shows bridge status, process stats, memory stats, uptime, and reconnect count.
 - `/bridge version` shows the same version/status information as `/bridge status`.
+- `/bridge heartbeat-status` shows the configured route heartbeat state.
+- `/bridge heartbeat-start` enables scheduled route heartbeats and sends one immediately when MeshCore is connected.
+- `/bridge heartbeat-stop` disables scheduled route heartbeats until they are started again or the process restarts with heartbeat config enabled.
 - `/bridge unhandled` shows the most recent unhandled MeshCore events kept in memory.
 
 ## `/mesh`
@@ -61,6 +64,7 @@ Behavior:
 ## Notes
 - Mesh -> Discord channel traffic uses the route webhook configured for that route.
 - Mesh direct messages bypass webhooks and go to `mesh_dm_user_id` first, or `mesh_dm_channel_id` if no DM user is configured.
+- `/bridge`, `/neighbors`, and `/nodes` commands require Discord `administrator`.
 - All bridged output is plain text only.
 - Allowed mentions are disabled for bridged Discord sends.
 - Discord operator views prefer 4-byte node prefixes (`8` hex chars) rather than full public keys.

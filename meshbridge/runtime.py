@@ -12,6 +12,7 @@ class BridgeState:
 
     started_at: int = field(default_factory=lambda: int(time.time()))
     global_paused: bool = False
+    heartbeat_enabled: bool = False
     mesh_connected: bool = False
     reconnect_count: int = 0
     fatal_startup_error: str | None = None

@@ -13,6 +13,7 @@ A Discord ↔ MeshCore bridge focused on:
 - live channel table and unknown-channel diagnostics
 - configurable serial or TCP MeshCore transport
 - optional scheduled adverts
+- optional route heartbeat messages with Discord slash-command controls
 - simple reconnect logic
 - Google-style docstrings for future documentation generation
 
@@ -56,6 +57,7 @@ For commercial licensing, please contact the author.
 - Neighbor table with compact persisted cache
 - Version/status command with process and system stats
 - Bounded message history
+- Bounded bridge queues to prevent unbounded memory growth during outages
 
 ## Project layout
 
@@ -167,6 +169,25 @@ auto_advert_flood: false
 ```
 
 Set `auto_advert_interval_hours` to a positive number to send one advert every N hours.
+
+### Route heartbeat
+
+Route heartbeats are disabled by default:
+
+```hjson
+heartbeat_route: null
+heartbeat_interval_seconds: 0
+heartbeat_text: "heartbeat"
+```
+
+Set `heartbeat_route` to a configured route name and
+`heartbeat_interval_seconds` to a positive value to send one heartbeat message
+on that route every interval. The scheduler enforces a 60 second minimum. Each
+heartbeat includes a UTC timestamp and short nonce, so RF logs can distinguish
+new heartbeats from flood-path echoes of the same packet.
+
+Use `/bridge heartbeat-status`, `/bridge heartbeat-start`, and
+`/bridge heartbeat-stop` to inspect or control the scheduler at runtime.
 
 ### Logging
 
@@ -282,6 +303,11 @@ The live comparator prints `REPEATER`, `BRIDGE-RX`, `BRIDGE-DECODE`,
 `MISSING`, and `NO-DECODE` lines as packets move through the repeater and bridge
 logs.
 
+The included `repeaterlog.sh` helper tails the remote `pymc-repeater` journal
+into `repeater.log` and starts the live comparator against `meshbridge.log`.
+Local runtime logs such as `meshbridge.log`, `repeater.log`,
+`rpi_syslog.log`, and neighbor caches are ignored by Git.
+
 ## Run with systemd
 
 An example service file is included at `systemd/meshbridge.service`.
@@ -332,6 +358,8 @@ WX4CB T250
 - Bridged text never invokes bridge commands.
 - Only real slash commands can control the bridge.
 - Sensitive slash commands require Discord `administrator`.
+- Neighbor/node inspection commands are also administrator-only so local RF
+  telemetry is not exposed through ordinary Discord users.
 - No shell execution from bridged content.
 - No URL fetching from bridged messages.
 - No untrusted avatar URLs.
@@ -379,6 +407,7 @@ The full Discord slash-command reference lives in `docs/COMMANDS.md`.
 Useful bring-up commands:
 
 - `/bridge status` shows bridge status and process stats.
+- `/bridge heartbeat-status`, `/bridge heartbeat-start`, and `/bridge heartbeat-stop` inspect and control route heartbeats.
 - `/mesh advert [flood]` sends a manual advert.
 - `/mesh packets` and `/mesh packet <pkt_hash>` inspect recent observed RF packet paths.
 - `/chatters` lists recent mesh channel senders from in-memory message history.
