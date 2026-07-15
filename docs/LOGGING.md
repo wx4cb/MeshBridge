@@ -82,6 +82,16 @@ Enables message-flow logging:
 - DM delivery actions
 - route-level rate limiting decisions
 
+Mesh-to-Discord channel delivery now has two useful traffic log lines:
+
+- `Mesh -> Discord route=...` means the bridge decoded a mesh message and is about to try the route webhook.
+- `Mesh -> Discord sent route=...` means `webhook.send()` returned and Discord accepted the request.
+
+If the webhook call raises, `meshbridge.system` logs `Mesh -> Discord delivery failed`
+with the route, sender, sanitized log preview, and exception. Mesh message content
+is sanitized before Discord delivery so embedded NUL/control bytes from decoded RF
+payloads cannot be sent directly to the webhook.
+
 ### `RFONLY`
 Enables RF/path/probe logging:
 

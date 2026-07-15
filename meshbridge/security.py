@@ -34,6 +34,19 @@ def sanitize_webhook_username(name: str | None, fallback: str = "unknown") -> st
     return value[:60]
 
 
+def sanitize_discord_content(text: str | None, fallback: str = "") -> str:
+    """Sanitize message content before sending it to Discord."""
+    if text is None:
+        return fallback
+
+    # Mesh packets can contain embedded NUL/control bytes after decoding.
+    # Discord webhooks expect printable text, so collapse those bytes before send.
+    value = text.replace("\r", " ").replace("\n", " ")
+    value = "".join(ch if ch.isprintable() else " " for ch in value)
+    value = " ".join(value.split()).strip()
+    return value or fallback
+
+
 def safe_log_text(text: str, max_len: int = 300) -> str:
     """Create a safe single-line log preview."""
     value = text.replace("\r", "\\r").replace("\n", "\\n")

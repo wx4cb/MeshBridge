@@ -368,6 +368,20 @@ WX4CB T250 | key=dbf23a42 | reachability=multi_hop | hops=3 | path=d93a1f20 -> b
 
 If a short on-air hop cannot be resolved uniquely, the bridge keeps the raw hop text or marks it as ambiguous instead of pretending to know which node it was.
 
+## If repeater logs show a message but Discord does not
+Compare the repeater `RX GRP_TXT` / `TX ... GRP_TXT` lines with MeshBridge
+`RFONLY` and `TRAFFICONLY` logs.
+
+- `RX_LOG_DATA group-text matched configured channel=... name=#route` confirms the bridge mapped the packet to a configured route.
+- `Mesh -> Discord route=...` confirms the bridge queued a webhook delivery attempt.
+- `Mesh -> Discord sent route=...` confirms Discord accepted the webhook request.
+- `Mesh -> Discord delivery failed route=...` means the webhook call raised; check the exception on that same log line.
+
+MeshBridge sanitizes Mesh-to-Discord content before webhook delivery by replacing
+embedded NUL/control bytes with spaces and collapsing whitespace. The raw message
+`repr` remains visible in the pre-send traffic log so malformed decoded payloads
+can still be diagnosed.
+
 ## If a neighbor name is obviously attached to the wrong key
 Check `RFONLY` logs for `adv_name` and `adv_key` on recent advert packets.
 

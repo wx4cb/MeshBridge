@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import platform
+import re
 import time
 import uuid
 from typing import Any
@@ -24,6 +25,7 @@ from meshbridge.security import (
     detect_url,
     format_forwarded_text,
     normalize_sender_name,
+    sanitize_discord_content,
     safe_log_text,
     split_for_mesh,
 )
@@ -48,6 +50,13 @@ DISCOVER_NODE_TYPE_NAMES = {
 # Keep bridge queues finite so a disconnected backend cannot grow memory
 # without bound during RF-heavy or Discord-heavy bursts.
 BRIDGE_QUEUE_MAXSIZE = 1000
+COORDINATE_PAIR_RE = re.compile(
+    r"(?<![\d.-])"
+    r"(?P<lat>[+-]?(?:[1-8]?\d(?:\.\d+)?|90(?:\.0+)?))"
+    r"\s*,\s*"
+    r"(?P<lon>[+-]?(?:(?:1[0-7]\d|[1-9]?\d)(?:\.\d+)?|180(?:\.0+)?))"
+    r"(?![\d.-])"
+)
 
 
 def resolve_sender_display(msg: BridgeMessage) -> str:
@@ -68,6 +77,75 @@ def extract_prefixed_sender(text: str) -> tuple[str | None, str]:
         return None, text
 
     return sender, body
+
+
+def link_wardriving_coordinates(route_name: str, content: str) -> str:
+    """Make coordinates clickable for coordinate-bearing wardriving posts."""
+    if route_name.strip().lower() not in {"#wardriving", "wardriving"}:
+        return content
+    if "maps.google.com/?q=" in content:
+        return content
+
+    match = COORDINATE_PAIR_RE.search(content)
+    if match is None:
+        return content
+
+    lat = float(match.group("lat"))
+    lon = float(match.group("lon"))
+    map_url = f"https://maps.google.com/?q={lat:.6f},{lon:.6f}"
+    linked_coordinates = f"[{match.group(0)}]({map_url})"
+    return f"{content[: match.start()]}{linked_coordinates}{content[match.end() :]}"
+
+
+def format_wardriving_path(path: list[str], neighbors: NeighborStore) -> str:
+    """Render a compact hop path suffix for wardriving posts."""
+    if not path:
+        return ""
+
+    return " > ".join(format_path_hop(hop, neighbors) for hop in path)
+
+
+def format_path_hop(hop: str, neighbors: NeighborStore) -> str:
+    """Render one observed path hop with best-effort local resolution."""
+    needle = str(hop).strip().lower()
+    if not needle:
+        return "unknown"
+
+    matches = []
+    for row in neighbors.list_recent():
+        key = (row.key or "").lower()
+        if key.startswith("name:"):
+            continue
+
+        key_prefix = key[:8]
+        if key.startswith(needle) or key_prefix.startswith(needle):
+            matches.append(row)
+
+    if not matches:
+        return needle
+
+    if len(matches) == 1:
+        return matches[0].key[:8]
+
+    candidates = ", ".join(sorted({row.key[:8] for row in matches})[:3])
+    return f"{needle}(ambiguous:{candidates})"
+
+
+def format_wardriving_content(
+    route_name: str,
+    content: str,
+    path: list[str],
+    neighbors: NeighborStore,
+) -> str:
+    """Format wardriving webhook content with linked coordinates and hop path."""
+    if route_name.strip().lower() not in {"#wardriving", "wardriving"}:
+        return content
+
+    formatted = link_wardriving_coordinates(route_name, content)
+    path_text = format_wardriving_path(path, neighbors)
+    if path_text:
+        formatted = f"{formatted} (path: {path_text})"
+    return formatted
 
 
 def extract_sender_name(payload: dict[str, Any]) -> str | None:
@@ -590,7 +668,15 @@ class MeshBridge:
             except Exception as exc:
                 msg.delivery_status = "failed"
                 msg.drop_reason = type(exc).__name__
-                system_log.exception("Mesh -> Discord delivery failed: %s", exc)
+                # Include route and sender context because webhook failures happen
+                # after the RF/message logs that identify the original mesh packet.
+                system_log.exception(
+                    "Mesh -> Discord delivery failed route=%s sender=%s text=%r error=%s",
+                    msg.route.route_name,
+                    resolve_sender_display(msg),
+                    safe_log_text(msg.text),
+                    exc,
+                )
             finally:
                 self.history.add(msg)
                 self.mesh_to_discord_queue.task_done()
@@ -1312,7 +1398,15 @@ class MeshBridge:
             return
 
         sender_name = resolve_sender_display(msg)
-        content = msg.text.strip() if msg.text else sender_name
+        # Clean decoded mesh text before handing it to Discord; RF logs still keep
+        # the raw repr so control-byte decode issues remain visible to operators.
+        content = sanitize_discord_content(msg.text, fallback=sender_name)
+        content = format_wardriving_content(
+            msg.route.route_name,
+            content,
+            msg.path.raw_path,
+            self.neighbors,
+        )
 
         traffic_log.info("Mesh -> Discord route=%s sender=%s text=%r", msg.route.route_name, sender_name, msg.text)
 
@@ -1322,6 +1416,9 @@ class MeshBridge:
             content=content,
         )
         msg.delivery_status = "sent"
+        # This line is intentionally after webhook.send() so it means Discord
+        # accepted the request, not merely that MeshBridge attempted delivery.
+        traffic_log.info("Mesh -> Discord sent route=%s sender=%s content=%r", msg.route.route_name, sender_name, content)
 
     async def _get_mesh_dm_user(self) -> Any:
         """Return the cached Discord user for mesh DM delivery."""
