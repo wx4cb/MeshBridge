@@ -14,3 +14,4 @@ meshbridge/__pycache__/
 repeater.log
 rpi_syslog.log
 meshbridge.log
+neighbors.json
