@@ -63,6 +63,10 @@ Use `/channels` to verify:
 - which configured route is bound to each live companion channel index
 - which repeated `GRP_TXT` channel hashes are still unknown to the bridge
 
+Startup logs may also show unused channel slots as `name=None` with a repeated
+placeholder hash. Those entries are expected on MeshCore nodes with empty
+channel slots and are ignored for `/channels` and `GRP_TXT` hash matching.
+
 If the configured route names do not line up with the device-reported channel
 names, update the route `name` values in `config.hjson`. Keep `mesh_channel`
 accurate enough to be a fallback for companions that do not report channel

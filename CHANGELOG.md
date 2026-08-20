@@ -4,6 +4,23 @@ All notable MeshBridge changes are tracked here.
 
 MeshBridge uses `major.minor.subminor` version numbers.
 
+## 0.1.3 - 2026-08-19
+
+### Added
+
+- Added clickable wardriving coordinate links with RF hop-path context in Discord output.
+- Added Mesh-to-Discord delivery success/failure logging with sanitized message previews.
+- Documented live channel diagnostics, RF path details, and unused MeshCore channel slots.
+
+### Changed
+
+- Matched configured routes to live MeshCore channel names before falling back to configured channel indexes.
+- Ignored unused `name=None` MeshCore channel slots when displaying known channels or matching raw `GRP_TXT` hashes.
+
+### Fixed
+
+- Sanitized Mesh-originated Discord content to prevent unsafe mentions and logged delivery failures instead of silently dropping them.
+
 ## 0.1.2 - 2026-05-29
 
 ### Added

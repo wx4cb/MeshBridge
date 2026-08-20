@@ -214,6 +214,10 @@ Use `/channels` to see:
 - which configured route is bound to each live mesh channel index
 - repeated unknown group-text hashes the bridge has heard
 
+Unused MeshCore channel slots can appear in startup logs as `name=None` with a
+repeated placeholder hash. The bridge logs them for visibility, but ignores them
+when displaying known channels or matching raw `GRP_TXT` RF hashes.
+
 This is especially useful when switching between different backends, because a
 USB serial companion and a TCP/pymc endpoint do not necessarily expose the same
 live channel order. Route names are matched to live channel names first;

@@ -958,12 +958,25 @@ class MeshBridge:
         if not channel_hash:
             return False
 
+        # Empty MeshCore channel slots have no name and usually share one
+        # repeated placeholder hash. A one-off unnamed hash is still useful
+        # diagnostic signal, but repeated unnamed hashes are treated as unused.
         duplicate_count = sum(
             1
             for candidate in self._channel_debug_info.values()
             if str(candidate.get("channel_hash") or "") == channel_hash
         )
         return duplicate_count == 1
+
+    def _known_group_text_channels(self) -> list[dict[str, Any]]:
+        """Return channel slots that should be trusted for GRP_TXT hash matching."""
+        return [
+            info
+            for info in self._channel_debug_info.values()
+            # MeshCore reports unused channel slots with no name and a repeated
+            # placeholder hash, so exclude them from RF channel matching.
+            if self._is_meaningful_channel_info(info)
+        ]
 
     def _format_known_channel_hashes(self) -> str:
         """Format configured channel hashes for one-line diagnostics."""
@@ -1751,7 +1764,7 @@ class MeshBridge:
                 if chan_hash:
                     matched = next(
                         (
-                            info for info in self._channel_debug_info.values()
+                            info for info in self._known_group_text_channels()
                             if str(info.get("channel_hash") or "").lower() == chan_hash
                         ),
                         None,

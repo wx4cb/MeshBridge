@@ -145,6 +145,11 @@ queries during connect. It is used to:
 - compare raw `GRP_TXT` hashes against known channels
 - expose `/channels` for Discord-side operator debugging
 
+MeshCore can report unused channel slots with `channel_name=None` and a
+repeated placeholder hash. The bridge keeps those entries in the raw scan log
+for visibility, but filters them out of known-channel displays and `GRP_TXT`
+hash matching.
+
 This matters because different connected nodes can present different live
 channel orders. A USB serial companion and a TCP/pymc endpoint should not be
 assumed to share the same channel index layout, so the bridge resolves routes by

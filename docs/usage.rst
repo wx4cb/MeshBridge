@@ -112,6 +112,10 @@ Use ``/channels`` to inspect:
 - the configured route bound to each live channel index
 - repeated unknown ``GRP_TXT`` channel hashes heard over RF
 
+Unused MeshCore channel slots may appear in startup logs as ``name=None`` with
+the same placeholder hash repeated across many indexes. Those slots are kept in
+the raw scan for troubleshooting, but are ignored for known-channel matching.
+
 This is important when moving between a USB serial companion and a TCP/pymc
 endpoint, because the live mesh channel order can differ between nodes. Route
 names are matched to live channel names first; configured ``mesh_channel``
